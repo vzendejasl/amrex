@@ -59,7 +59,11 @@ namespace ParallelDescriptor
     int m_MinTag = 1000, m_MaxTag = -1;
 
     const int ioProcessor = 0;
-    int thread_safety = -1;
+
+    // MPI safety objects are defined as -4 through -1.
+    // This will allow all standard checks (provided >= desired)
+    // to come back false when USE_MPI=FALSE.
+    int thread_safety = -1000;
 
     namespace util
     {

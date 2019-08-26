@@ -53,6 +53,14 @@ const int MPI_GROUP_NULL    = 0;
 const int MPI_PROC_NULL     = 0;
 const int MPI_MAX_PROCESSOR_NAME = 64;
 
+// thread_safety set to -1000 when USE_MPI=FALSE
+//  so all standard tests (provided >= desired)
+//  should come back false
+const int MPI_THREAD_MULTIPLE = -1;
+const int MPI_THREAD_SERIALIZED = -2;
+const int MPI_THREAD_FUNNELED = -3;
+const int MPI_THREAD_SINGLE = -4;
+
 const int MPI_MINLOC = 0;
 const int MPI_MAXLOC = 0;
 
