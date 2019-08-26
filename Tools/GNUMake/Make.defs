@@ -219,6 +219,12 @@ else
   USE_EB := FALSE
 endif
 
+ifdef ASYNCOUT
+  ASYNCOUT := $(string $(ASYNCOUT))
+else
+  ASYNCOUT := FALSE
+endif
+
 ifdef USE_SENSEI_INSITU
   USE_SENSEI_INSITU := $(strip $(USE_SENSEI_INSITU))
 else
@@ -371,6 +377,10 @@ else
         CPPFLAGS += -DNDEBUG
     endif
     DebugSuffix :=
+endif
+
+ifeq ($(ASYNCOUT),TRUE)
+    CPPFLAGS += -DAMREX_ASYNCOUT
 endif
 
 ifeq ($(USE_PROFPARSER),TRUE)

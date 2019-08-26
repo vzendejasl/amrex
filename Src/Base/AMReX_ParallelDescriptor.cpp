@@ -59,6 +59,7 @@ namespace ParallelDescriptor
     int m_MinTag = 1000, m_MaxTag = -1;
 
     const int ioProcessor = 0;
+    int thread_safety = -1;
 
     namespace util
     {
@@ -298,12 +299,19 @@ ParallelDescriptor::StartParallel (int*    argc,
     MPI_Initialized(&sflag);
 
     if ( ! sflag) {
-	MPI_Init(argc, argv);
+#ifdef AMREX_ASYNCOUT
+	MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE, &thread_safety);
         m_comm = MPI_COMM_WORLD;
         call_mpi_finalize = 1;
+#else
+        MPI_Init(argc, argv);
+        m_comm = MPI_COMM_WORLD;
+        call_mpi_finalize = 1;
+#endif
     } else {
         MPI_Comm_dup(a_mpi_comm, &m_comm);
         call_mpi_finalize = 0;
+        MPI_Query_thread(&thread_safety);
     }
 
     ParallelContext::push(m_comm);

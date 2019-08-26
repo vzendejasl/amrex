@@ -119,6 +119,13 @@ while ( false )
     */
     void EndParallel ();
 
+    extern int thread_safety;
+    inline int
+    ThreadSafety () noexcept
+    {
+        return thread_safety;
+    }
+
     //! return the rank number local to the current Parallel Context
     inline int
     MyProc () noexcept
