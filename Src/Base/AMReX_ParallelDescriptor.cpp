@@ -313,10 +313,17 @@ ParallelDescriptor::StartParallel (int*    argc,
 	MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE, &thread_safety);
         m_comm = MPI_COMM_WORLD;
         call_mpi_finalize = 1;
+
+        if (thread_safety < MPI_THREAD_MULTIPLE)
+        {
+            amrex::Abort("Requested MPI_THREAD_MULTIPLE support (" << MPI_THREAD_MULTIPLE
+                         << "but only " << thread_safety << " was provided.");
+        }
 #else
         MPI_Init(argc, argv);
         m_comm = MPI_COMM_WORLD;
         call_mpi_finalize = 1;
+        MPI_Query_thread(&thread_safety);
 #endif
     } else {
         MPI_Comm_dup(a_mpi_comm, &m_comm);
