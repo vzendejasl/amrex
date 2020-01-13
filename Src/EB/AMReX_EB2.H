@@ -15,7 +15,6 @@
 namespace amrex { namespace EB2 {
 
 extern int max_grid_size;
-extern bool compare_with_ch_eb;
 
 void useEB2 (bool);
 
@@ -50,7 +49,8 @@ protected:
     static Vector<std::unique_ptr<IndexSpace> > m_instance;
 };
 
-const IndexSpace* TopIndexSpaceIfPresent() noexcept;
+const IndexSpace* TopIndexSpaceIfPresent () noexcept;
+inline const IndexSpace* TopIndexSpace () noexcept { return TopIndexSpaceIfPresent(); }
 
 template <typename G>
 class IndexSpaceImp

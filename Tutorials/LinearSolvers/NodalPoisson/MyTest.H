@@ -12,13 +12,14 @@ public:
     MyTest ();
 
     void solve ();
-
     void compute_norms () const;
+    void writePlotfile () const;
+
+    void initData ();
 
 private:
 
     void readParameters ();
-    void initData ();
 
     int max_level = 1;
     int ref_ratio = 2;
@@ -33,6 +34,8 @@ private:
     int max_iter = 100;
     int max_fmg_iter = 0;
     amrex::Real reltol = 1.e-11;
+
+    int gpu_regtest = 0;
 
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;

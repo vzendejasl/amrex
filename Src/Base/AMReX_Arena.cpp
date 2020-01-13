@@ -30,16 +30,20 @@ namespace {
     bool abort_on_out_of_gpu_memory = false;
 }
 
-const unsigned int Arena::align_size;
+const std::size_t Arena::align_size;
 
 Arena::~Arena () {}
 
 std::size_t
+aligned_size (std::size_t align_requirement, std::size_t size)
+{
+    return ((size + (align_requirement-1)) / align_requirement) * align_requirement;
+}
+
+std::size_t
 Arena::align (std::size_t s)
 {
-    std::size_t x = s + (align_size-1);
-    x -= x & (align_size-1);
-    return x;
+    return amrex::aligned_size(align_size, s);
 }
 
 void*
@@ -50,7 +54,7 @@ Arena::allocate_system (std::size_t nbytes)
     if (arena_info.device_use_hostalloc)
     {
         AMREX_HIP_OR_CUDA(
-            AMREX_HIP_SAFE_CALL ( hipHostAlloc(&p, nbytes, hipHostMallocMapped));,
+            AMREX_HIP_SAFE_CALL (hipHostMalloc(&p, nbytes, hipHostMallocMapped));,
             AMREX_CUDA_SAFE_CALL(cudaHostAlloc(&p, nbytes, cudaHostAllocMapped)););
     }
     else
@@ -101,7 +105,7 @@ Arena::deallocate_system (void* p, std::size_t nbytes)
 #ifdef AMREX_USE_GPU
     if (arena_info.device_use_hostalloc)
     {
-        AMREX_HIP_OR_CUDA(AMREX_HIP_SAFE_CALL ( hipFreeHost(p));,
+        AMREX_HIP_OR_CUDA(AMREX_HIP_SAFE_CALL ( hipHostFree(p));,
                           AMREX_CUDA_SAFE_CALL(cudaFreeHost(p)););
     }
     else

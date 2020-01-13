@@ -54,12 +54,6 @@
 
 #define AMREX_GPU_LAUNCH_DEVICE_LAMBDA_BOX(...) AMREX_GPU_LAUNCH_HOST_DEVICE_LAMBDA_BOX(__VA_ARGS__)
 
-#define AMREX_GPU_LAUNCH_HOST_DEVICE_LAMBDA_ASYNC(bbb,tbb,sync_id,block) \
-    { \
-        const amrex::Box& tbb = bbb; \
-        block \
-    }
-
 #define AMREX_GPU_LAUNCH_HOST_DEVICE_XYZ(bbx,bby,bbz,tbx,tby,tbz,blockx,blocky,blockz) \
     { \
         const amrex::Box& tbx = bbx; \
@@ -141,6 +135,10 @@
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_1D(...)      AMREX_GPU_PARALLEL_FOR_1D_IMPL(__VA_ARGS__);
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_3D(...)      AMREX_GPU_PARALLEL_FOR_3D_IMPL(__VA_ARGS__);
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_4D(...)      AMREX_GPU_PARALLEL_FOR_4D_IMPL(__VA_ARGS__);
+
+#define AMREX_GPU_HOST_DEVICE_PARALLEL_FOR_1D(...) AMREX_GPU_PARALLEL_FOR_1D_IMPL(__VA_ARGS__);
+#define AMREX_GPU_HOST_DEVICE_PARALLEL_FOR_3D(...) AMREX_GPU_PARALLEL_FOR_3D_IMPL(__VA_ARGS__);
+#define AMREX_GPU_HOST_DEVICE_PARALLEL_FOR_4D(...) AMREX_GPU_PARALLEL_FOR_4D_IMPL(__VA_ARGS__);
 
 #define AMREX_GPU_LAUNCH_HOST_DEVICE(strategy, ...) amrex::launch_host(__VA_ARGS__);
 #define AMREX_GPU_LAUNCH_DEVICE(strategy, ...) amrex::launch_host(__VA_ARGS__);

@@ -3,20 +3,38 @@ target_include_directories(amrex PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_D
 # MPI header is incapsulated in AMReX_ccse-mpi.H
 if (ENABLE_MPI)
    find_package(MPI REQUIRED C CXX)
-   target_link_libraries(amrex PUBLIC MPI::MPI_C MPI::MPI_CXX) 
+
+   # Make imported target "global" so that it can be seen
+   # from other directories in the project.
+   # This is especially useful when get_target_properties_flattened()
+   # (see module AMReXTargetHelpers.cmake) is called to recover dependecy tree info 
+   # in projects that use amrex directly in the build (via add_subdirectory()).
+   # Without this, get_target_properties_flattened() would not recognize
+   # MPI::MPI_C and MPI::MPI_CXX as targets because they would be visibile only in this
+   # folder and subfolders.
+   set_target_properties(
+      MPI::MPI_C MPI::MPI_CXX
+      PROPERTIES
+      IMPORTED_GLOBAL True )
+
+   target_link_libraries(amrex PUBLIC MPI::MPI_C MPI::MPI_CXX)
 endif ()
 
 # We need threads 
 set( THREADS_PREFER_PTHREAD_FLAG on)
 find_package(Threads REQUIRED)
+set_target_properties( Threads::Threads PROPERTIES IMPORTED_GLOBAL True )
 target_link_libraries(amrex PUBLIC Threads::Threads)
- 
+
+
 target_sources( amrex
    PRIVATE 
    # Utility classes ---------------------------------------------------------
    AMReX_ccse-mpi.H
    AMReX_Algorithm.H
    AMReX_Array.H
+   AMReX_BlockMutex.H
+   AMReX_BlockMutex.cpp
    AMReX_Vector.H
    AMReX_Tuple.H
    AMReX.cpp
@@ -27,6 +45,7 @@ target_sources( amrex
    AMReX_error_fi.cpp
    AMReX_Extension.H
    AMReX_IndexSequence.H
+   AMReX_PODVector.H
    AMReX_ParmParse.cpp
    AMReX_parmparse_fi.cpp
    AMReX_ParmParse.H
@@ -36,9 +55,12 @@ target_sources( amrex
    AMReX_Reduce.H
    AMReX_Scan.H
    AMReX_Partition.H
+   AMReX_Random.H
+   AMReX_Random.cpp
    AMReX_BLassert.H
    AMReX_ArrayLim.H
    AMReX_REAL.H
+   AMReX_INT.H
    AMReX_CONSTANTS.H
    AMReX_SPACE.H
    AMReX_DistributionMapping.H
@@ -143,6 +165,7 @@ target_sources( amrex
    AMReX_Geometry.H
    AMReX_MultiFabUtil.cpp
    AMReX_MultiFabUtil.H
+   AMReX_MultiFabUtilI.H
    # Boundary-related --------------------------------------------------------
    AMReX_BCRec.cpp
    AMReX_BCRec.H 
@@ -203,11 +226,10 @@ target_sources( amrex
    AMReX_GpuMemory.H
    AMReX_GpuRange.H
    AMReX_GpuReduce.H
+   AMReX_GpuAllocators.H
+   AMReX_GpuAllocators.cpp
+   AMReX_GpuContainers.H
    # CUDA --------------------------------------------------------------------
-   AMReX_CudaAllocators.H
-   AMReX_CudaAllocators.cpp
-   AMReX_CudaAllocators.H
-   AMReX_CudaContainers.H
    AMReX_CudaGraph.H
    # Machine model -----------------------------------------------------------
    AMReX_Machine.H

@@ -153,9 +153,9 @@ NeighborParticleContainer<NStructReal, NStructInt>
                 const Box& box = mfi.tilebox();
                 const int grid_id = mfi.index();
                 const int tile_id = mfi.LocalTileIndex();
-                mask_ptr[lev]->setVal(grid_id, box, MaskComps::grid,  1);
-                mask_ptr[lev]->setVal(tile_id, box, MaskComps::tile,  1);
-                mask_ptr[lev]->setVal(lev    , box, MaskComps::level, 1);
+                (*mask_ptr[lev])[mfi].setVal(grid_id, box, MaskComps::grid,  1);
+                (*mask_ptr[lev])[mfi].setVal(tile_id, box, MaskComps::tile,  1);
+                (*mask_ptr[lev])[mfi].setVal(lev    , box, MaskComps::level, 1);
             }
 
             mask_ptr[lev]->FillBoundary(geom.periodicity());
@@ -175,7 +175,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
 
     if (use_mask)
     {
-        BL_ASSERT(this->finestLevel() == 0);
+        AMREX_ASSERT(this->finestLevel() == 0);
         const int lev = 0;
         for (MFIter mfi(*mask_ptr[lev],this->do_tiling ? this->tile_size : IntVect::TheZeroVector());
              mfi.isValid(); ++mfi) {
@@ -530,8 +530,8 @@ getNeighborTags (Vector<NeighborCopyTag>& tags, const ParticleType& p,
 
     if (use_mask) {
         const BaseFab<int>& mask = (*mask_ptr[src_tag.level])[src_tag.grid];
-        BL_ASSERT(this->finestLevel() == 0);
-        BL_ASSERT(src_tag.level == 0);
+        AMREX_ASSERT(this->finestLevel() == 0);
+        AMREX_ASSERT(src_tag.level == 0);
 
         const int lev = 0;
         const IntVect& iv = this->Index(p, lev);

@@ -17,7 +17,7 @@ module amrex_fort_module
   integer (kind=c_size_t), parameter :: amrex_real_size = 8_c_size_t
 #endif
 
-#ifdef BL_SINGLE_PRECISION_PARTICLES
+#ifdef AMREX_SINGLE_PRECISION_PARTICLES
   integer, parameter :: amrex_particle_real = c_float
 #else
   integer, parameter :: amrex_particle_real = c_double
@@ -182,13 +182,20 @@ contains
     y = x
     y = warpReduceSum(y)
 
+    ! syncthreads() prior to writing to shared memory is necessary
+    ! if this reduction call is occurring multiple times in a kernel,
+    ! and since we don't know how many times the user is calling it,
+    ! we do it always to be safe.
+
+    call syncthreads()
+
     if (lane == 0) then
        s(wid) = y
     end if
 
     call syncthreads()
 
-    if ((threadIdx%x-1) < blockDim%x / warpsize) then
+    if ((threadIdx%x-1) < max(blockDim%x, warpsize) / warpsize) then
        y = s(lane)
     else
        y = 0

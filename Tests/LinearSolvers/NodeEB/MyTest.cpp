@@ -27,6 +27,12 @@ MyTest::MyTest ()
 void
 MyTest::solve ()
 {
+    BL_PROFILE("solve()");
+
+    for (int ilev = 0; ilev <= max_level; ++ilev) {
+        phi[ilev].setVal(0.0);
+    }
+
     std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_lobc;
     std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_hibc;
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -39,9 +45,10 @@ MyTest::solve ()
         }
     }
             
-
     LPInfo info;
     info.setMaxCoarseningLevel(max_coarsening_level);
+    info.setAgglomerationGridSize(agg_grid_size);
+    info.setConsolidationGridSize(con_grid_size);
 
     MLNodeLaplacian mlndlap(geom, grids, dmap, info, amrex::GetVecOfConstPtrs(factory));
 
@@ -56,18 +63,6 @@ MyTest::solve ()
     }
 
     mlndlap.compRHS(amrex::GetVecOfPtrs(rhs), amrex::GetVecOfPtrs(vel), {}, {});
-
-#if 0
-#if (AMREX_SPACEDIM == 2)
-    for (int ilev = 0; ilev <= max_level; ++ilev) {
-        amrex::VisMF::Write(rhs[ilev], "rhs2d");
-    }
-#else
-    for (int ilev = 0; ilev <= max_level; ++ilev) {
-        amrex::VisMF::Write(rhs[ilev], "rhs3d");
-    }
-#endif
-#endif
 
     MLMG mlmg(mlndlap);
     mlmg.setVerbose(verbose);
@@ -85,20 +80,8 @@ MyTest::solve ()
     mlndlap.updateVelocity(amrex::GetVecOfPtrs(vel), amrex::GetVecOfConstPtrs(phi));
 
 #if 0
-#if (AMREX_SPACEDIM == 2)
-    for (int ilev = 0; ilev <= max_level; ++ilev) {
-        amrex::VisMF::Write(phi[ilev], "phi2d");
-    }
-#else
-    for (int ilev = 0; ilev <= max_level; ++ilev) {
-        amrex::VisMF::Write(phi[ilev], "phi3d");
-    }
-#endif
-#endif
-
     mlndlap.compRHS(amrex::GetVecOfPtrs(rhs), amrex::GetVecOfPtrs(vel), {}, {});
 
-#if 0
     for (int ilev = 0; ilev <= max_level; ++ilev) {
         amrex::VisMF::Write(rhs[ilev], "rhs"+std::to_string(ilev));
         amrex::Print() << "rhs.norm0() = " << rhs[ilev].norm0() << "\n";
@@ -110,7 +93,27 @@ MyTest::solve ()
 void
 MyTest::writePlotfile ()
 {
-    amrex::WriteSingleLevelPlotfile("plot", vel[0], {AMREX_D_DECL("xvel","yvel","zvel")}, geom[0], 0.0, 0);
+#if (AMREX_SPACEDIM == 3)
+    if (gpu_regtest)
+    {
+        MultiFab veltmp(vel[0].boxArray(), vel[0].DistributionMap(), AMREX_SPACEDIM-1,0);
+        int icomp = 0;
+        for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+            if (idim != cylinder_direction) {
+                MultiFab::Copy(veltmp,vel[0],idim,icomp,1,0);
+                ++icomp;
+            }
+        }
+        Vector<std::string> vnames;
+        if (cylinder_direction != 0) vnames.push_back("xvel");
+        if (cylinder_direction != 1) vnames.push_back("yvel");
+        if (cylinder_direction != 2) vnames.push_back("zvel");
+        amrex::WriteSingleLevelPlotfile("plot", veltmp, vnames, geom[0], 0.0, 0);
+    } else
+#endif
+    {
+        amrex::WriteSingleLevelPlotfile("plot", vel[0], {AMREX_D_DECL("xvel","yvel","zvel")}, geom[0], 0.0, 0);
+    }
 }
 
 void
@@ -131,8 +134,12 @@ MyTest::readParameters ()
 #ifdef AMREX_USE_HYPRE
     pp.query("use_hypre", use_hypre);
 #endif
+    pp.query("agg_grid_size", agg_grid_size);
+    pp.query("con_grid_size", con_grid_size);
 
     pp.query("sigma", sigma);
+
+    pp.query("gpu_regtest", gpu_regtest);
 
 #if (AMREX_SPACEDIM == 3)
     ParmParse pp_eb("eb2");
@@ -214,81 +221,50 @@ MyTest::initData ()
         phi[ilev].setVal(0.0);
         sig[ilev].setVal(1.0);
         vel[ilev].setVal(0.0);
-        const Real* dx = geom[ilev].CellSize();
+        const auto dx = geom[ilev].CellSizeArray();
         const Real h = dx[0];
         for (MFIter mfi(vel[ilev]); mfi.isValid(); ++mfi)
         {
             const Box& bx = mfi.validbox();
-            FArrayBox& fab = vel[ilev][mfi];
-
-            int ncomp = 1;
+            Array4<Real> const& fab = vel[ilev].array(mfi);
 
 #if (AMREX_SPACEDIM > 2)
             if (cylinder_direction == 2)
 #endif
             {
-               int icomp = 0; // vx
-               fab.ForEachIV(bx, icomp, ncomp, [=] (Real& v_x, const IntVect& iv) 
-                   {
-                       Real rx = (iv[0]+0.5)*h - 0.5;
-                       Real ry = (iv[1]+0.5)*h - 0.5;
-                       Real r = std::sqrt(rx*rx+ry*ry);
-                       Real fac = std::exp(-(r*r/(0.16*0.16)));
-                       v_x = v_x + 2.0*r*ry/r*fac;
-                   });
-               icomp = 1; // vy
-               fab.ForEachIV(bx, icomp, ncomp, [=] (Real& v_y, const IntVect& iv) 
-                   {
-                       Real rx = (iv[0]+0.5)*h - 0.5;
-                       Real ry = (iv[1]+0.5)*h - 0.5;
-                       Real r = std::sqrt(rx*rx+ry*ry);
-                       Real fac = std::exp(-(r*r/(0.16*0.16)));
-                       v_y = v_y - 2.0*r*rx/r*fac;
-                   });
-
+                amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+                    Real rx = (i+0.5)*h - 0.5;
+                    Real ry = (j+0.5)*h - 0.5;
+                    Real r = std::sqrt(rx*rx+ry*ry);
+                    Real fac = std::exp(-(r*r/(0.16*0.16)));
+                    fab(i,j,k,0) += 2.0*r*ry/r*fac;
+                    fab(i,j,k,1) -= 2.0*r*rx/r*fac;
+               });
             } 
 #if (AMREX_SPACEDIM > 2)
             else if (cylinder_direction == 1) 
             {
-               int icomp = 0; // vx
-               fab.ForEachIV(bx, icomp, ncomp, [=] (Real& v_x, const IntVect& iv) 
-                   {
-                       Real rx = (iv[0]+0.5)*h - 0.5;
-                       Real rz = (iv[2]+0.5)*h - 0.5;
-                       Real r = std::sqrt(rx*rx+rz*rz);
-                       Real fac = std::exp(-(r*r/(0.16*0.16)));
-                       v_x = v_x - 2.0*r*rz/r*fac;
-                   });
-               icomp = 2; // vx
-               fab.ForEachIV(bx, icomp, ncomp, [=] (Real& v_z, const IntVect& iv) 
-                   {
-                       Real rx = (iv[0]+0.5)*h - 0.5;
-                       Real rz = (iv[2]+0.5)*h - 0.5;
-                       Real r = std::sqrt(rx*rx+rz*rz);
-                       Real fac = std::exp(-(r*r/(0.16*0.16)));
-                       v_z = v_z + 2.0*r*rx/r*fac;
-                   });
-
+                amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+                    Real rx = (i+0.5)*h - 0.5;
+                    Real rz = (k+0.5)*h - 0.5;
+                    Real r = std::sqrt(rx*rx+rz*rz);
+                    Real fac = std::exp(-(r*r/(0.16*0.16)));
+                    fab(i,j,k,0) -= 2.0*r*rz/r*fac;
+                    fab(i,j,k,2) += 2.0*r*rx/r*fac;
+                });
             } 
             else if (cylinder_direction == 0) 
             {
-               int icomp = 1; // v:
-               fab.ForEachIV(bx, icomp, ncomp, [=] (Real& v_y, const IntVect& iv) 
-                   {
-                       Real ry = (iv[1]+0.5)*h - 0.5;
-                       Real rz = (iv[2]+0.5)*h - 0.5;
-                       Real r = std::sqrt(ry*ry+rz*rz);
-                       Real fac = std::exp(-(r*r/(0.16*0.16)));
-                       v_y = v_y + 2.0*r*rz/r*fac;
-                   });
-               icomp = 2; // vz
-               fab.ForEachIV(bx, icomp, ncomp, [=] (Real& v_z, const IntVect& iv) 
-                   {
-                       Real rz = (iv[2]+0.5)*h - 0.5;
-                       Real ry = (iv[1]+0.5)*h - 0.5;
-                       Real r = std::sqrt(ry*ry+rz*rz);
-                       Real fac = std::exp(-(r*r/(0.16*0.16)));
-                       v_z = v_z - 2.0*r*ry/r*fac;
+                amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+                    Real ry = (j+0.5)*h - 0.5;
+                    Real rz = (k+0.5)*h - 0.5;
+                    Real r = std::sqrt(ry*ry+rz*rz);
+                    Real fac = std::exp(-(r*r/(0.16*0.16)));
+                    fab(i,j,k,1) += 2.0*r*rz/r*fac;
+                    fab(i,j,k,2) -= 2.0*r*ry/r*fac;
                 });
             } 
 #endif

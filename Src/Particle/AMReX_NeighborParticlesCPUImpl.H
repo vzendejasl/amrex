@@ -107,10 +107,8 @@ sumNeighborsMPI (std::map<int, Vector<char> >& not_ours,
 {
     BL_PROFILE("NeighborParticleContainer::sumNeighborsMPI");
     
-#ifdef BL_USE_MPI
+#ifdef AMREX_USE_MPI
     const int NProcs = ParallelDescriptor::NProcs();
-    
-    AMREX_ASSERT(not_ours.size() == neighbor_procs.size());
     
     Vector<long> isnds(NProcs, 0);
     Vector<long> ircvs(NProcs, 0);
@@ -384,10 +382,8 @@ getRcvCountsMPI () {
 
     BL_PROFILE("NeighborParticleContainer::getRcvCountsMPI");
 
-#ifdef BL_USE_MPI
+#ifdef AMREX_USE_MPI
     const int NProcs = ParallelDescriptor::NProcs();
-
-    AMREX_ASSERT(send_data.size() == neighbor_procs.size());
 
     // each proc figures out how many bytes it will send, and how
     // many it will receive
@@ -432,7 +428,7 @@ getRcvCountsMPI () {
 
     if (num_rcvs > 0) ParallelDescriptor::Waitall(rreqs, stats);
 
-#endif // BL_USE_MPI
+#endif // AMREX_USE_MPI
 }
 
 template <int NStructReal, int NStructInt>
@@ -442,7 +438,7 @@ fillNeighborsMPI (bool reuse_rcv_counts) {
 
     BL_PROFILE("NeighborParticleContainer::fillNeighborsMPI");
 
-#ifdef BL_USE_MPI
+#ifdef AMREX_USE_MPI
     const int NProcs = ParallelDescriptor::NProcs();
 
     // each proc figures out how many bytes it will send, and how
@@ -603,7 +599,7 @@ buildNeighborListCPU (CheckPair check_pair, bool sort) {
 
             PairIndex index(pti.index(), pti.LocalTileIndex());
 #ifdef AMREX_USE_CUDA
-            Cuda::HostVector<int> nl;
+            Gpu::HostVector<int> nl;
 #else
             IntVector& nl = neighbor_list[lev][index];
 #endif
@@ -670,18 +666,13 @@ buildNeighborListCPU (CheckPair check_pair, bool sort) {
 
             if (sort) {
                 for (unsigned i = 0; i < nl.size(); i += nl[i] +1) {
-#ifdef AMREX_USE_CUDA
-                    thrust::sort(nl.begin() + i + 1,
-                                 nl.begin() + nl[i] + i + 1);
-#else
                     std::sort(nl.begin() + i + 1,
                               nl.begin() + nl[i] + i + 1);
-#endif
                 }
             }
 #ifdef AMREX_USE_CUDA
             neighbor_list[lev][index].resize(nl.size());
-            thrust::copy(nl.begin(), nl.end(), neighbor_list[lev][index].begin());
+            Gpu::copy(Gpu::hostToDevice, nl.begin(), nl.end(), neighbor_list[lev][index].begin());
 #endif
         }
         }
@@ -704,7 +695,7 @@ printNeighborListCPU (const std::string& prefix)
             for (MyParIter pti(*this, lev, MFItInfo().SetDynamic(true)); pti.isValid(); ++pti) {
                 PairIndex index(pti.index(), pti.LocalTileIndex());
 #ifdef AMREX_USE_CUDA
-                Cuda::HostVector<int> nl;
+                Gpu::HostVector<int> nl;
 #else
                 IntVector& nl = neighbor_list[lev][index];
 #endif

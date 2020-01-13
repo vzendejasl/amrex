@@ -16,6 +16,9 @@ namespace amrex {
         Dim3 end;  // end is hi + 1
         int  ncomp;
 
+        AMREX_GPU_HOST_DEVICE
+        constexpr Array4 () noexcept : p(nullptr) {}
+
         template <class U=T, class = typename std::enable_if<std::is_const<U>::value>::type >
         AMREX_GPU_HOST_DEVICE
         constexpr Array4 (Array4<typename std::remove_const<T>::type> const& rhs) noexcept
@@ -53,6 +56,9 @@ namespace amrex {
               end(rhs.end),
               ncomp(rhs.ncomp-start_comp)
         {}
+
+        AMREX_GPU_HOST_DEVICE
+        explicit operator bool() const noexcept { return p != nullptr; }
 
         template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -150,6 +156,11 @@ namespace amrex {
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         int nComp () const noexcept { return ncomp; }
+
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        bool contains (int i, int j, int k) const noexcept {
+            return (i>=begin.x and i<end.x and j>=begin.y and j<end.y and k>=begin.z and k<end.z);
+        }
 
 #if defined(AMREX_DEBUG) || defined(AMREX_BOUND_CHECK)
         AMREX_GPU_HOST_DEVICE inline

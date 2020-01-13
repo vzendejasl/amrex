@@ -4,18 +4,14 @@ target_sources(amrex
    PRIVATE 
    AMReX_EBCellFlag.H
    AMReX_EBFArrayBox.H
-   AMReX_EBInterp_F.H
    AMReX_EBMultiFabUtil.H
    AMReX_MultiCutFab.H
    AMReX_EBAmrUtil.H
    AMReX_EBDataCollection.H
-   AMReX_EBFluxRegister_F.H
    AMReX_EBInterpolater.H
    AMReX_EBSupport.H
-   AMReX_EBCellFlag_F.H
    AMReX_EBFabFactory.H
    AMReX_EBFluxRegister.H
-   AMReX_EBMultiFabUtil_F.H
    AMReX_EBMultiFabUtil_C.H
    AMReX_EB_F.H
    AMReX_EB_levelset.H
@@ -36,11 +32,10 @@ target_sources(amrex
    AMReX_EB_levelset.cpp
    AMReX_EB_utils.cpp
    AMReX_EB_LSCoreBase.cpp 
-   AMReX_EBFluxRegister_${DIM}d.F90
+   AMReX_EBFluxRegister_${DIM}D_C.H
+   AMReX_EBFluxRegister_C.H
    AMReX_EBFluxRegister_nd.F90
-   AMReX_EBMultiFabUtil_${DIM}d.F90
    AMReX_EBMultiFabUtil_${DIM}D_C.H
-   AMReX_ebinterp_${DIM}d.F90  
    AMReX_ebcellflag_mod.F90   
    AMReX_compute_normals.F90
    AMReX_eb_to_pvd.F90
@@ -71,6 +66,8 @@ target_sources(amrex
    AMReX_EB2_IF_Polynomial.H
    AMReX_EB2_IF_Extrusion.H
    AMReX_EB2_IF_Difference.H
+   AMReX_EB2_IF_Torus.H
+   AMReX_EB2_IF_Spline.H
    AMReX_EB2_IF.H
    AMReX_EB2_IF_Base.H
    AMReX_distFcnElement.H

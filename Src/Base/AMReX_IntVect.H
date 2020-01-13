@@ -1,14 +1,7 @@
+#ifndef AMREX_INTVECT_H_
+#define AMREX_INTVECT_H_
 
-#ifndef BL_INTVECT_H
-#define BL_INTVECT_H
-
-#include <iosfwd>
-#include <cstdlib>
-#include <cmath>
-#include <limits>
-#include <climits>
-#include <algorithm>
-
+#include <AMReX_INT.H>
 #include <AMReX_ccse-mpi.H>
 #include <AMReX_SPACE.H>
 #include <AMReX_Array.H>
@@ -17,6 +10,13 @@
 #include <AMReX_BLassert.H>
 #include <AMReX_Extension.H>
 #include <AMReX_GpuQualifiers.H>
+
+#include <iosfwd>
+#include <cstdlib>
+#include <cmath>
+#include <limits>
+#include <climits>
+#include <algorithm>
 
 namespace amrex {
 
@@ -172,6 +172,22 @@ public:
     //! Returns the i'th coordinate of the IntVect.
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     const int& operator[] (int i) const noexcept { BL_ASSERT(i>=0 && i < AMREX_SPACEDIM); return vect[i]; }
+
+    //! Returns a pointer to the first element of the IntVect.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    int* begin () noexcept { return &vect[0]; }
+
+    //! Returns a pointer to the first element of the IntVect.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    const int* begin () const noexcept { return &vect[0]; }
+
+    //! Returns a pointer to the (last+1) element of the IntVect.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    int* end () noexcept { return &vect[AMREX_SPACEDIM]; }
+
+    //! Returns a pointer to the (last+1) element of the IntVect.
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    const int* end () const noexcept { return &vect[AMREX_SPACEDIM]; }
 
     //! Set i'th coordinate of IntVect to val.
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -442,15 +458,15 @@ public:
 
     //! for serialization
     static size_t AMREX_FORCE_INLINE
-    linearSize() noexcept
+    linearSize () noexcept
     {
         size_t retval = AMREX_SPACEDIM*sizeof(int);
         return retval;
     }
 
     //! for serialization
-    void linearOut(void* a_buffer ) const noexcept;
-    void linearIn(void* a_buffer ) noexcept;
+    void linearOut (void* a_buffer ) const noexcept;
+    void linearIn (void* a_buffer ) noexcept;
 
     /**
     * \brief This static member function returns a reference to a constant IntVect
@@ -800,4 +816,4 @@ Dim3 coarsen (Dim3 const& fine, IntVect const& ratio) noexcept
 
 }
 
-#endif /*BL_INTVECT_H*/
+#endif /*AMREX_INTVECT_H*/

@@ -46,7 +46,9 @@ public:
                  const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
     void setShearViscosity (int amrlev, const Array<MultiFab const*,AMREX_SPACEDIM>& eta);
+    void setShearViscosity (int amrlev, Real eta);
     void setBulkViscosity (int amrlev, const Array<MultiFab const*,AMREX_SPACEDIM>& kappa);
+    void setBulkViscosity (int amrlev, Real kappa);
 
     virtual int getNComp () const final override { return AMREX_SPACEDIM; }
 
@@ -82,7 +84,8 @@ protected:
 public: // for cuda
 
     void applyBCTensor (int amrlev, int mglev, MultiFab& vel,
-                        BCMode bc_mode, const MLMGBndry* bndry) const;
+                        BCMode bc_mode, StateMode s_mode, const MLMGBndry* bndry
+			) const;
 };
 
 }

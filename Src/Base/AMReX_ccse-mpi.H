@@ -15,6 +15,8 @@
 namespace amrex {
 namespace ParallelDescriptor
 {
+    using lull_t = unsigned long long[8];
+
     template <class T>
     //! Communication datatype (note: this structure also works without MPI)
     struct Mpi_typemap
@@ -32,8 +34,10 @@ namespace ParallelDescriptor
     template <> MPI_Datatype Mpi_typemap<unsigned short>::type();
     template <> MPI_Datatype Mpi_typemap<unsigned int>::type();
     template <> MPI_Datatype Mpi_typemap<unsigned long>::type();
+    template <> MPI_Datatype Mpi_typemap<unsigned long long>::type();
     template <> MPI_Datatype Mpi_typemap<float>::type();
     template <> MPI_Datatype Mpi_typemap<double>::type();
+    template <> MPI_Datatype Mpi_typemap<lull_t>::type();
 }
 }
 

@@ -1,3 +1,96 @@
+# 20.01
+
+  -- GPU host device version of swap.
+
+  -- Fix an edge case of gpu block reduce where the block size is less
+     than a warp.
+
+  -- Always check MPI buffer size for overflow.
+
+  -- CMake support for PETSc.
+
+  -- Include C sources in the CUDA proprecessing.
+
+  -- It's now safe to construct a zero components Fab.
+
+  -- CXXSTD: option to set c++ standard in GNU make system
+
+  -- Improve performance of the nodal linear solver on GPU.
+
+# 19.12
+
+  -- Fix potential deadlocks in amrex::Random.
+
+  -- MultiFab::Swap that does shallow swap if it can, does deep swap
+     otherwise.
+
+  -- FabArray::arena function that returns the Arena used to build.
+
+  -- Nodal projection sync residuals are implemented for RAP.
+
+  -- GPU support for initializing Fabs to NaNs.
+
+# 19.11
+
+  -- AmrCore::regrid will now simply return instead of abort if the
+     base level is already the maximal level.
+
+  -- Add NodalProjector that wraps MLMG for convenience.
+
+  -- Enforce in AmrCore that blocking factor must be a power of 2.
+
+  -- Add support to write plotfile in HDF5 format.
+
+  -- FabArray's Reduce functions can now take lambda working on Array4
+     in addition of FAB.
+
+  -- Add AMREX_REAL_MIN, AMREX_REAL_MAX and AMREX_REAL_LOWEST for
+     convenience.
+
+  -- GPU launch functions and macros are now safe with empty boxes.
+
+  -- Remove FabView from BaseFab.
+
+  -- Avoid race conditions in GPU reduction code called multiple
+     times.
+
+  -- MLMG tensor solver is fixed for AMR.
+
+# 19.10
+
+  -- Add inhomogeneous Neumann BC to MLMG for convenience.
+
+  -- Fix a corner case of tensor solver.
+
+  -- Various fixes for single precision and particle real.
+
+  -- Add amrex::Long that has a size of 8.
+
+  -- Add int8_t support in typecheck.
+
+  -- C++ user literal _rt for amrex::Real and _prt for
+     amrex::ParticleReal.
+
+  -- EB MAC projector now requires the user to specify whether the
+     face velocities are defined on face centers or centroids.
+
+# 19.09
+
+  -- First pass of Sr/EB on GPU.
+
+  -- Optimization of particle redistribution.
+
+  -- EB integral: add integral of x*y*z
+
+  -- HostDevice::Atomic::Add that does atomic add for both device and
+     host omp code.
+
+  -- makeFineMask: optional arguments specifying coarse and fine flag
+     values.
+
+  -- Optimization of FabArray communication for GPU by merging small
+     kernels.
+
 # 19.08
 
   -- MacProjector has the option to set maximal coarsening level.

@@ -6,6 +6,7 @@ namespace amrex {
 template<typename T, typename L>
 void launch (T const& n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(n)) return;
     const auto ec = Gpu::ExecutionConfig(n);
     std::size_t sm = std::max(ec.sharedMem, shared_mem_bytes);
     amrex::launch_global<<<ec.numBlocks, ec.numThreads, sm, Gpu::gpuStream()>>>(
@@ -20,6 +21,7 @@ void launch (T const& n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
 void For (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(n)) return;
     const auto ec = Gpu::ExecutionConfig(n);
     std::size_t sm = std::max(ec.sharedMem, shared_mem_bytes);
     amrex::launch_global<<<ec.numBlocks, ec.numThreads, sm, Gpu::gpuStream()>>>(
@@ -35,12 +37,13 @@ void For (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
 void ParallelFor (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
-    For(n,std::move(f),shared_mem_bytes);
+    For(n,std::forward<L>(f),shared_mem_bytes);
 }
 
 template <typename L>
 void For (Box const& box, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box)) return;
     int ncells = box.numPts();
     const auto lo  = amrex::lbound(box);
     const auto len = amrex::length(box);
@@ -65,12 +68,13 @@ void For (Box const& box, L&& f, std::size_t shared_mem_bytes=0) noexcept
 template <typename L>
 void ParallelFor (Box const& box, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box,std::move(f),shared_mem_bytes);
+    For(box,std::forward<L>(f),shared_mem_bytes);
 }
 
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
 void For (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box)) return;
     int ncells = box.numPts();
     const auto lo  = amrex::lbound(box);
     const auto len = amrex::length(box);
@@ -97,13 +101,14 @@ void For (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexce
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
 void ParallelFor (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box,ncomp,std::move(f),shared_mem_bytes);
+    For(box,ncomp,std::forward<L>(f),shared_mem_bytes);
 }
 
 template <typename L1, typename L2>
 void For (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
           std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box1) and amrex::isEmpty(box2)) return;
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
     int ncells = amrex::max(ncells1, ncells2);
@@ -144,6 +149,7 @@ template <typename L1, typename L2, typename L3>
 void For (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
           std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box1) and amrex::isEmpty(box2) and amrex::isEmpty(box3)) return;
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
     int ncells3 = box3.numPts();
@@ -199,6 +205,7 @@ void For (Box const& box1, T1 ncomp1, L1&& f1,
           Box const& box2, T2 ncomp2, L2&& f2,
           std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box1) and amrex::isEmpty(box2)) return;
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
     int ncells = amrex::max(ncells1, ncells2);
@@ -248,6 +255,7 @@ void For (Box const& box1, T1 ncomp1, L1&& f1,
           Box const& box3, T3 ncomp3, L3&& f3,
           std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box1) and amrex::isEmpty(box2) and amrex::isEmpty(box3)) return;
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
     int ncells3 = box3.numPts();
@@ -306,14 +314,14 @@ template <typename L1, typename L2>
 void ParallelFor (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,std::move(f1),std::move(f2),shared_mem_bytes);
+    For(box1,box2,std::forward<L1>(f1),std::forward<L2>(f2),shared_mem_bytes);
 }
 
 template <typename L1, typename L2, typename L3>
 void ParallelFor (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,box3,std::move(f1),std::move(f2),std::move(f3),shared_mem_bytes);
+    For(box1,box2,box3,std::forward<L1>(f1),std::forward<L2>(f2),std::forward<L3>(f3),shared_mem_bytes);
 }
 
 template <typename T1, typename T2, typename L1, typename L2,
@@ -323,7 +331,7 @@ void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
                   Box const& box2, T2 ncomp2, L2&& f2,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,ncomp1,ncomp2,std::move(f1),std::move(f2),shared_mem_bytes);
+    For(box1,ncomp1,std::forward<L1>(f1),box2,ncomp2,std::forward<L2>(f2),shared_mem_bytes);
 }
 
 template <typename T1, typename T2, typename T3, typename L1, typename L2, typename L3,
@@ -335,13 +343,16 @@ void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
                   Box const& box3, T3 ncomp3, L3&& f3,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,box3,ncomp1,ncomp2,ncomp3,std::move(f1),std::move(f2),std::move(f3),shared_mem_bytes);
+    For(box1,ncomp1,std::forward<L1>(f1),
+        box2,ncomp2,std::forward<L2>(f2),
+        box3,ncomp3,std::forward<L2>(f3),shared_mem_bytes);
 }
 
 template <typename T, typename L1, typename L2>
 void FabReduce (Box const& box, T const& init_val,
                 L1&& f1, L2&& f2, std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box)) return;
     int ncells = box.numPts();
     const auto lo  = amrex::lbound(box);
     const auto len = amrex::length(box);
@@ -371,6 +382,7 @@ template <typename N, typename T, typename L1, typename L2,
 void FabReduce (Box const& box, N ncomp, T const& init_val,
                 L1&& f1, L2&& f2, std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(box)) return;
     int ncells = box.numPts();
     const auto lo  = amrex::lbound(box);
     const auto len = amrex::length(box);
@@ -402,6 +414,7 @@ template <typename N, typename T, typename L1, typename L2,
 void VecReduce (N n, T const& init_val,
                 L1&& f1, L2&& f2, std::size_t shared_mem_bytes=0) noexcept
 {
+    if (amrex::isEmpty(n)) return;
     auto ec = Gpu::ExecutionConfig(n);
     ec.numBlocks.x = std::min(ec.numBlocks.x, static_cast<unsigned int>(Gpu::Device::maxBlocksPerLaunch()));
     std::size_t sm = std::max(ec.sharedMem, shared_mem_bytes);

@@ -41,7 +41,7 @@ InitParticles(const IntVect& a_num_particles_per_cell,
 {
     BL_PROFILE("MDParticleContainer::InitParticles");
 
-    amrex::Print() << "Generating particles... ";
+    amrex::PrintToFile("neighbor_test") << "Generating particles... ";
 
     const int lev = 0;   
     const Real* dx = Geom(lev).CellSize();
@@ -55,7 +55,7 @@ InitParticles(const IntVect& a_num_particles_per_cell,
     {
         const Box& tile_box  = mfi.tilebox();
 
-        Cuda::HostVector<ParticleType> host_particles;
+        Gpu::HostVector<ParticleType> host_particles;
         
         for (IntVect iv = tile_box.smallEnd(); iv <= tile_box.bigEnd(); tile_box.next(iv)) {
             for (int i_part=0; i_part<num_ppc;i_part++) {
@@ -98,13 +98,12 @@ InitParticles(const IntVect& a_num_particles_per_cell,
         auto new_size = old_size + host_particles.size();
         particle_tile.resize(new_size);
         
-        Cuda::thrust_copy(host_particles.begin(),
-                          host_particles.end(),
-                          particle_tile.GetArrayOfStructs().begin() + old_size);        
+        Gpu::copy(Gpu::hostToDevice, host_particles.begin(), host_particles.end(),
+                  particle_tile.GetArrayOfStructs().begin() + old_size);        
     }
     
-    amrex::Print() << " Number of particles is " << this->TotalNumberOfParticles()<< " \n";
-    amrex::Print() << "done. \n";
+    amrex::PrintToFile("neighbor_test") << " Number of particles is " << this->TotalNumberOfParticles()<< " \n";
+    amrex::PrintToFile("neighbor_test") << "done. \n";
 }
 
 std::pair<Real, Real> MDParticleContainer::minAndMaxDistance()
@@ -214,7 +213,7 @@ void MDParticleContainer::checkNeighborParticles()
 
     int ngrids = ParticleBoxArray(0).size();
 
-    amrex::Cuda::ManagedVector<int> d_num_per_grid(ngrids,0);
+    amrex::Gpu::ManagedVector<int> d_num_per_grid(ngrids,0);
     int* p_num_per_grid = d_num_per_grid.data();
 
     // CPU version
@@ -238,13 +237,13 @@ void MDParticleContainer::checkNeighborParticles()
             Gpu::Atomic::Add(&(p_num_per_grid[p1.idata(0)]),1);
         }
 
-        amrex::AllPrint() << "FOR GRID " << gid << "\n";;
+        amrex::AllPrintToFile("neighbor_test") << "FOR GRID " << gid << "\n";;
 
         for (int i = 0; i < ngrids; i++)
-          amrex::AllPrint() << "   there are " << d_num_per_grid[i] << " with grid id " << i << "\n";;
+          amrex::AllPrintToFile("neighbor_test") << "   there are " << d_num_per_grid[i] << " with grid id " << i << "\n";;
 
-        amrex::AllPrint() << " \n";
-        amrex::AllPrint() << " \n";
+        amrex::AllPrintToFile("neighbor_test") << " \n";
+        amrex::AllPrintToFile("neighbor_test") << " \n";
     }
 
 #if 0
@@ -282,13 +281,13 @@ void MDParticleContainer::checkNeighborParticles()
 
         // mine = d_mine.dataValue();
 
-        amrex::AllPrint() << "FOR GRID " << gid << "\n";;
+        amrex::AllPrintToFile("neighbor_test") << "FOR GRID " << gid << "\n";;
 
         for (int i = 0; i < ngrids; i++)
-          amrex::AllPrint() << "   there are " << d_num_per_grid[i] << " with grid id " << i << "\n";;
+          amrex::AllPrintToFile("neighbor_test") << "   there are " << d_num_per_grid[i] << " with grid id " << i << "\n";;
 
-        amrex::AllPrint() << " \n";
-        amrex::AllPrint() << " \n";
+        amrex::AllPrintToFile("neighbor_test") << " \n";
+        amrex::AllPrintToFile("neighbor_test") << " \n";
     }
 #endif
 }
@@ -321,10 +320,10 @@ void MDParticleContainer::checkNeighborList()
         const size_t np       = aos.numParticles();
         const size_t np_total = aos.numTotalParticles();
 
-        amrex::Cuda::ManagedVector<int> d_neighbor_count(np,0);
+        amrex::Gpu::ManagedVector<int> d_neighbor_count(np,0);
         int* p_neighbor_count = d_neighbor_count.data();
 
-        amrex::Cuda::ManagedVector<int> d_full_count(np,0);
+        amrex::Gpu::ManagedVector<int> d_full_count(np,0);
         int* p_full_count = d_full_count.data();
 
         auto nbor_data = m_neighbor_list[index].data();
@@ -374,13 +373,13 @@ void MDParticleContainer::checkNeighborList()
 
             if (nbor_nbors.size() != full_nbors.size())
             {
-               amrex::Print() << "Number of neighbors do not match for particle " << i << std::endl;
-               amrex::Print() << "Neighbor list has " << nbor_nbors.size() << " particles " << std::endl;
-               amrex::Print() << "Full N^2 list has " << full_nbors.size() << " particles " << std::endl;
+               amrex::PrintToFile("neighbor_test") << "Number of neighbors do not match for particle " << i << std::endl;
+               amrex::PrintToFile("neighbor_test") << "Neighbor list has " << nbor_nbors.size() << " particles " << std::endl;
+               amrex::PrintToFile("neighbor_test") << "Full N^2 list has " << full_nbors.size() << " particles " << std::endl;
                amrex::Abort();
             }
 
-            // amrex::Print() << "   there are " << nbor_nbors.size() << " " <<
+            // amrex::PrintToFile("neighbor_test") << "   there are " << nbor_nbors.size() << " " <<
             //                  full_nbors.size() << " list / full neighbors of particle " << i << std::endl;
             
             // Loop over particles in my neighbor list
@@ -389,9 +388,9 @@ void MDParticleContainer::checkNeighborList()
                 // std::cout << "   NBORS " << nbor_nbors[cnt] << " " << full_nbors[cnt] << std::endl;
                 if (nbor_nbors[cnt] != full_nbors[cnt])
                 {
-                     amrex::Print() << "Index of neighbors do not match for particle " << i << std::endl;
-                     amrex::Print() << "Neighbor list neighbor index: " << nbor_nbors[cnt]  << std::endl;
-                     amrex::Print() << "Full N^2 list neighbor index: " << full_nbors[cnt]  << std::endl;
+                     amrex::PrintToFile("neighbor_test") << "Index of neighbors do not match for particle " << i << std::endl;
+                     amrex::PrintToFile("neighbor_test") << "Neighbor list neighbor index: " << nbor_nbors[cnt]  << std::endl;
+                     amrex::PrintToFile("neighbor_test") << "Full N^2 list neighbor index: " << full_nbors[cnt]  << std::endl;
                      amrex::Abort();
                 }
             }
@@ -399,7 +398,7 @@ void MDParticleContainer::checkNeighborList()
         } // i
     } // MFIter
 
-    amrex::Print() << "All the neighbor list particles match!" << std::endl;
+    amrex::PrintToFile("neighbor_test") << "All the neighbor list particles match!" << std::endl;
 }
 
 void MDParticleContainer::reset_test_id()
