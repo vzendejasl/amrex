@@ -58,6 +58,8 @@ int main (int argc, char* argv[])
         int use_hypre  = 0;
         int regtest   = 0;
 
+        bool phi_on_centroid = false;
+
         Real obstacle_radius = 0.10;
 
         // read parameters
@@ -69,6 +71,7 @@ int main (int argc, char* argv[])
             pp.query("max_grid_size", max_grid_size);
             pp.query("use_hypre", use_hypre);
             pp.query("regtest", regtest);
+            pp.query("phi_on_centroid", phi_on_centroid);
         }
 
 #ifndef AMREX_USE_HYPRE
@@ -187,11 +190,17 @@ int main (int argc, char* argv[])
         if (use_hypre)
             lp_info.setMaxCoarseningLevel(0);
 
+        MLMG::Location phi_loc; 
+        if (phi_on_centroid)
+           phi_loc = MLMG::Location::CellCentroid;
+        else
+           phi_loc = MLMG::Location::CellCenter;
+
         MacProjector macproj({amrex::GetArrOfPtrs(vel)},       // mac velocity
-                             MLMG::Location::FaceCenter,       // Location of vel
+                             MLMG::Location::FaceCentroid,     // Location of vel
                              {amrex::GetArrOfConstPtrs(beta)}, // beta
-                             MLMG::Location::FaceCenter,       // Location of beta
-                             MLMG::Location::CellCenter,       // Location of solution variable phi
+                             MLMG::Location::FaceCentroid,     // Location of beta
+                             phi_loc,                          // Location of solution variable phi
                              {geom},                           // the geometry object
                              lp_info);                         // structure for passing info to the operator
 
