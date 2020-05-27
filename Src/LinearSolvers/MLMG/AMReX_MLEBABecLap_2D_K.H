@@ -269,7 +269,8 @@ void mlebabeclap_gsrb (Box const& box,
                        Array4<Real const> const& fcx, Array4<Real const> const& fcy,
                        Array4<Real const> const& ba, Array4<Real const> const& bcent,
                        Array4<Real const> const& ccent, Array4<Real const> const& beb,
-                       bool is_eb_dirichlet, bool beta_on_centroid, bool phi_on_centroid,
+                       bool is_eb_dirichlet , bool is_eb_inhomog,
+                       bool beta_on_centroid, bool phi_on_centroid,
                        Box const& vbox, int redblack, int ncomp) noexcept
 {
     const auto vlo = amrex::lbound(vbox);
@@ -321,7 +322,7 @@ void mlebabeclap_gsrb (Box const& box,
                     Real apym = apy(i,j,k);
                     Real apyp = apy(i,j+1,k);
 
-                    Real fxm = -bX(i,j,k,n)*phi(i-1,j,k,n);
+                    Real fxm = -bX(i,j,k,n)*(phi(i-1,j,k,n)-phi(i,j,k,n));
                     Real oxm = -bX(i,j,k,n)*cf0;
                     Real sxm =  bX(i,j,k,n);
                     if ( !phi_on_centroid and (apxm != 0.0 and apxm != 1.0) ) {
@@ -335,17 +336,22 @@ void mlebabeclap_gsrb (Box const& box,
                         } 
                         else if (beta_on_centroid)
                         {
-                            fxm = (1.0-fracy)*(             -phi(i-1,j,k,n)) +
+                            fxm = (1.0-fracy)*(phi(i, j,k,n)-phi(i-1,j,k,n)) +
                                        fracy *(phi(i,jj,k,n)-phi(i-1,jj,k,n));
                             fxm *= bX(i,j,k,n);
                         }
                         oxm = 0.0;
                         sxm = (1.0-fracy)*sxm;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0)) {
+                    } else if ( phi_on_centroid and
+                              (apxm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0) ) {
+                        Real yloc_on_xface = fcx(i,j,k);
+                        fxm = grad_x_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,
+                                                         yloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+                        fxm *= bX(i,j,k,n);
+                        oxm = 0.0;
                     }
 
-                    Real fxp =  bX(i+1,j,k,n)*phi(i+1,j,k,n);
+                    Real fxp =  bX(i+1,j,k,n)*(phi(i+1,j,k,n)-phi(i,j,k,n));
                     Real oxp =  bX(i+1,j,k,n)*cf2;
                     Real sxp = -bX(i+1,j,k,n);
                     if ( !phi_on_centroid and (apxp != 0.0 and apxp != 1.0) ) {
@@ -359,17 +365,22 @@ void mlebabeclap_gsrb (Box const& box,
                         } 
                         else if (beta_on_centroid)
                         {
-                            fxp = (1.0-fracy)*(phi(i+1,j,k,n)               ) +
+                            fxp = (1.0-fracy)*(phi(i+1, j,k,n)-phi(i, j,k,n)) +
                                        fracy *(phi(i+1,jj,k,n)-phi(i,jj,k,n));
                             fxp *= bX(i+1,j,k,n);
                         }
                         oxp = 0.0;
                         sxp = (1.0-fracy)*sxp;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i+1,j,k) != 1.0)) {
+                    } else if ( phi_on_centroid and
+                               (apxp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i+1,j,k) != 1.0) ) {
+                        Real yloc_on_xface = fcx(i+1,j,k,0);
+                        fxp = grad_x_of_phi_on_centroids(i+1,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,
+                                                 yloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+                        fxp *= bX(i+1,j,k,n);
+                        oxp = 0.0;
                     }
 
-                    Real fym = -bY(i,j,k,n)*phi(i,j-1,k,n);
+                    Real fym = -bY(i,j,k,n)*(phi(i,j-1,k,n)-phi(i,j,k,n));
                     Real oym = -bY(i,j,k,n)*cf1;
                     Real sym =  bY(i,j,k,n);
                     if ( !phi_on_centroid and (apym != 0.0 and apym != 1.0) ) {
@@ -383,17 +394,22 @@ void mlebabeclap_gsrb (Box const& box,
                         } 
                         else if (beta_on_centroid)
                         {
-                            fym = (1.0-fracx)*(             -phi( i,j-1,k,n)) +
+                            fym = (1.0-fracx)*(phi( i,j,k,n)-phi( i,j-1,k,n)) +
                                        fracx *(phi(ii,j,k,n)-phi(ii,j-1,k,n));
                             fym *= bY(i,j,k,n);
                         }
                         oym = 0.0;
                         sym = (1.0-fracx)*sym;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i,j-1,k) != 1.0)) {
+                    } else if ( phi_on_centroid and
+                               (apym != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j-1,k) != 1.0) ) {
+                        Real xloc_on_yface = fcy(i,j,k,0);
+                        fym = grad_y_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,
+                                                         xloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+                        fym *= bY(i,j,k,n);
+                        oym = 0.0;
                     }
 
-                    Real fyp =  bY(i,j+1,k,n)*phi(i,j+1,k,n);
+                    Real fyp =  bY(i,j+1,k,n)*(phi(i,j+1,k,n)-phi(i,j,k,n));
                     Real oyp =  bY(i,j+1,k,n)*cf3;
                     Real syp = -bY(i,j+1,k,n);
                     if ( !phi_on_centroid and (apyp != 0.0 and apyp != 1.0) ) {
@@ -407,21 +423,27 @@ void mlebabeclap_gsrb (Box const& box,
                         } 
                         else if (beta_on_centroid and !phi_on_centroid)
                         {
-                            fyp = (1.0-fracx)*(phi(i,j+1,k,n)               )+
+                            fyp = (1.0-fracx)*(phi( i,j+1,k,n)-phi( i,j,k,n))+
                                        fracx *(phi(ii,j+1,k,n)-phi(ii,j,k,n));
                             fyp *= bY(i,j+1,k,n);
                         }
                         oyp = 0.0;
                         syp = (1.0-fracx)*syp;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i,j+1,k) != 1.0)) {
+                     } else if ( phi_on_centroid and
+                                (apyp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j+1,k) != 1.0) ) {
+                        Real xloc_on_yface = fcy(i,j+1,k,0);
+                        Real zloc_on_yface = fcy(i,j+1,k,1);
+                        fyp = grad_y_of_phi_on_centroids(i,j+1,k,n,phi,phieb,flag,ccent,bcent,apx,apy,
+                                                         xloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+                        oyp = 0.0;
                     }
 
                     Real vfrcinv = (1.0/kappa);
                     Real gamma = alpha*a(i,j,k) + vfrcinv *
                         (dhx*(apxm*sxm-apxp*sxp) +
                          dhy*(apym*sym-apyp*syp));
-                    Real rho = -vfrcinv *
+
+                    Real rho = vfrcinv *
                         (dhx*(apxm*fxm-apxp*fxp) +
                          dhy*(apym*fym-apyp*fyp));
 
@@ -474,6 +496,7 @@ void mlebabeclap_gsrb (Box const& box,
     
                             Real feb_gamma = -phig_gamma/dg * ba(i,j,k) * beb(i,j,k,n);
                             gamma += vfrcinv*(-dhx)*feb_gamma;
+
                         } else if (phi_on_centroid) {
                             // Note because we have put the problem in residual form before getting here,
                             // we can assume that phieb is zero everywhere now.  So we send in a flag
@@ -486,8 +509,13 @@ void mlebabeclap_gsrb (Box const& box,
                         }
                     }
 
-                    Real res = rhs(i,j,k,n) - (gamma*phi(i,j,k,n) - rho);
-                    phi(i,j,k,n) += res/(gamma-delta);
+                    if (!phi_on_centroid) {
+                        Real res = rhs(i,j,k,n) - rho;
+                        phi(i,j,k,n) += res/(gamma-delta);
+                    } else if (phi_on_centroid) {
+                        Real res = rhs(i,j,k,n) - rho;
+                        phi(i,j,k,n) += res/(gamma-delta);
+                    }
                 }
             }
         }

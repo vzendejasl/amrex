@@ -130,6 +130,8 @@ protected:
     Vector<Vector<Array<MultiFab,AMREX_SPACEDIM> > > m_b_coeffs;
     Vector<Vector<iMultiFab> > m_cc_mask;
 
+    Vector<Vector<MultiFab> > m_coeff0;
+
     Vector<std::unique_ptr<MultiFab> > m_eb_phi;
     Vector<Vector<std::unique_ptr<MultiFab> > > m_eb_b_coeffs;
 
@@ -147,6 +149,8 @@ protected:
                                         const Vector<MultiFab*>& b_eb);
     void averageDownCoeffs ();
     void averageDownCoeffsToCoarseAmrLevel (int flev);
+
+    void CalcCoeff0 (int amrlev, int mglev, MultiFab& coeff0);
 };
 
 }

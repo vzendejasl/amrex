@@ -1,4 +1,6 @@
-n_cell = 128                             # number of cells in y-direction; we double this in the x-direction and divide by 8 in the z-direction
+amrex.fpe_trap_invalid = 1
+
+n_cell = 128                             # num. of cells in y-direction; double this in x-dir, divide by 8 in z-dir
 max_grid_size = 64                       # the maximum number of cells in any direction in a single grid (default: 32)
 
 obstacles = 0 1 2 3 4 5 6 7 8            # this is how we choose which obstacles to include 

@@ -418,7 +418,8 @@ void mlebabeclap_gsrb (Box const& box,
                        Array4<Real const> const& fcz,
                        Array4<Real const> const& ba, Array4<Real const> const& bcent,
                        Array4<Real const> const& ccent, Array4<Real const> const& beb,
-                       bool is_eb_dirichlet, bool beta_on_centroid, bool phi_on_centroid,
+                       bool is_eb_dirichlet, bool is_eb_inhomog,
+                       , bool beta_on_centroid, bool phi_on_centroid,
                        Box const& vbox, int redblack, int ncomp) noexcept
 {
     constexpr Real omega = 1.15;
@@ -517,8 +518,14 @@ void mlebabeclap_gsrb (Box const& box,
                         }
                         oxm = 0.0;
                         sxm = (1.0-fracy)*(1.0-fracz)*sxm;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0)) {
+                    } else if ( phi_on_centroid and 
+                               (apxm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0) ) {
+                        Real yloc_on_xface = fcx(i,j,k,0);
+                        Real zloc_on_xface = fcx(i,j,k,1);
+                        fxm = grad_x_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                                                         yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+                        fxm *= bX(i,j,k,n);
+                        oxm = 0.0;
                     }
 
                     Real fxp =  bX(i+1,j,k,n)*phi(i+1,j,k,n);
@@ -550,8 +557,14 @@ void mlebabeclap_gsrb (Box const& box,
 
                         oxp = 0.0;
                         sxp = (1.0-fracy)*(1.0-fracz)*sxp;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i+1,j,k) != 1.0)) {
+                    } else if ( phi_on_centroid and 
+                              (apxp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i+1,j,k) != 1.0) ) {
+                        Real yloc_on_xface = fcx(i+1,j,k,0);
+                        Real zloc_on_xface = fcx(i+1,j,k,1);
+                        fxp = grad_x_of_phi_on_centroids(i+1,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                                                         yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+                        fxp *= bX(i+1,j,k,n);
+                        oxp = 0.0;
                     }
 
                     Real fym = -bY(i,j,k,n)*phi(i,j-1,k,n);
@@ -582,8 +595,14 @@ void mlebabeclap_gsrb (Box const& box,
                         }
                         oym = 0.0;
                         sym = (1.0-fracx)*(1.0-fracz)*sym;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i,j-1,k) != 1.0)) {
+                    } else if ( phi_on_centroid and 
+                               (apym != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j-1,k) != 1.0) ) {
+                        Real xloc_on_yface = fcy(i,j,k,0);
+                        Real zloc_on_yface = fcy(i,j,k,1);
+                        fym = grad_y_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                                                         xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+                        fym *= bY(i,j,k,n);
+                        oym = 0.0;
                     }
 
                     Real fyp =  bY(i,j+1,k,n)*phi(i,j+1,k,n);
@@ -614,8 +633,14 @@ void mlebabeclap_gsrb (Box const& box,
                         }
                         oyp = 0.0;
                         syp = (1.0-fracx)*(1.0-fracz)*syp;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i,j+1,k) != 1.0)) {
+                   } else if ( phi_on_centroid and 
+                              (apyp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j+1,k) != 1.0) ) {
+                       Real xloc_on_yface = fcy(i,j+1,k,0);
+                       Real zloc_on_yface = fcy(i,j+1,k,1);
+                       fyp = grad_y_of_phi_on_centroids(i,j+1,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                                                        xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+                       fyp *= bY(i,j+1,k,n);
+                        oyp = 0.0;
                     }
 
                     Real fzm = -bZ(i,j,k,n)*phi(i,j,k-1,n);
@@ -646,8 +671,14 @@ void mlebabeclap_gsrb (Box const& box,
                         }
                         ozm = 0.0;
                         szm = (1.0-fracx)*(1.0-fracy)*szm;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i,j,k-1) != 1.0)) {
+                    } else if ( phi_on_centroid and 
+                               (apzm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j,k-1) != 1.0) ) {
+                        Real xloc_on_zface = fcz(i,j,k,0);
+                        Real yloc_on_zface = fcz(i,j,k,1);
+                        fzm = grad_y_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                                                         xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
+                        fzm *= bZ(i,j,k,n);
+                        ozm = 0.0;
                     }
 
                     Real fzp =  bZ(i,j,k+1,n)*phi(i,j,k+1,n);
@@ -678,8 +709,14 @@ void mlebabeclap_gsrb (Box const& box,
                         }
                         ozp = 0.0;
                         szp = (1.0-fracx)*(1.0-fracy)*szp;
-                    } else if (phi_on_centroid and
-                               (vfrc(i,j,k) != 1.0 or vfrc(i,j,k+1) != 1.0)) {
+                    } else if ( phi_on_centroid and 
+                               (apzp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j,k+1) != 1.0) ) {
+                        Real xloc_on_zface = fcz(i,j,k+1,0);
+                        Real yloc_on_zface = fcz(i,j,k+1,1);
+                        fzp = grad_z_of_phi_on_centroids(i,j,k+1,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                                                         xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
+                        fzp *= bZ(i,j,k+1,n);
+                        ozp = 0.0;
                     }
 
                     Real vfrcinv = 1.0/kappa;

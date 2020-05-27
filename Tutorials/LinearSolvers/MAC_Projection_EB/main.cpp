@@ -247,7 +247,7 @@ int main (int argc, char* argv[])
 
 	// If we want to use phi elsewhere, we can pass in an array in which to return the solution
 	// MultiFab phi_inout(grids, dmap, 1, 1, MFInfo(), factory);
-	// macproj.project_center_vels({&phi_inout},reltol,abstol,MLMG::Location::FaceCenter);
+	// macproj.project_center_vels({&phi_inout},reltol,abstol);
 
         amrex::Print() << " \n********************************************************************" << std::endl;
         amrex::Print() << " Done!" << std::endl;

@@ -547,11 +547,6 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
             }
         }
 
-    // Columns 3 : [x*x  x*y  y*y]
-    for (int irow = 0; irow < 12; irow++)
-    {
-    }
-
     // Make the RHS = A^T v
     for (int irow = 0; irow < 6; irow++)
     {
@@ -559,6 +554,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
 
         for (int ii = i-1; ii <= i; ii++)  // Normal to face
             for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
+            {
                 if (!flag(ii,jj,k).isCovered())
                 {
                     int a_ind  = (jj-(j-1)) + 3*(i-ii);
@@ -568,6 +564,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
                         is_eb_dirichlet && is_eb_inhomog)
                             rhs(irow) += Amatrix(a_ind+6,irow)*phieb(ii,jj,k,n);
                 }
+            }
     }
 
     cholsol_np6(Amatrix, rhs);

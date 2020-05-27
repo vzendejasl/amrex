@@ -107,6 +107,15 @@ void
 MLEBABecLap::setPhiOnCentroid ()
 {
     m_phi_loc = Location::CellCentroid;
+
+    // We only make this if phi is defined on centroids
+    m_coeff0.resize(m_num_amr_levels);
+    for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+    {
+        m_coeff0[amrlev].resize(m_num_mg_levels[amrlev]);
+        for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+            m_coeff0[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1);
+    }
 }
 
 void
@@ -189,6 +198,9 @@ MLEBABecLap::setBCoeffs (int amrlev, Vector<Real> const& beta)
 void
 MLEBABecLap::setEBDirichlet (int amrlev, const MultiFab& phi, const MultiFab& beta)
 {
+    // If we call setEBDirichlet instead of setEBHomogDirichlet then we assume posisbly inhomogeneous
+    m_is_eb_inhomog = true;
+
     const int ncomp = getNComp();
     const int beta_ncomp = beta.nComp();
     AMREX_ALWAYS_ASSERT(beta_ncomp == 1 or beta_ncomp == ncomp);
@@ -265,6 +277,9 @@ MLEBABecLap::setEBDirichlet (int amrlev, const MultiFab& phi, const MultiFab& be
 void
 MLEBABecLap::setEBDirichlet (int amrlev, const MultiFab& phi, Real beta)
 {
+    // If we call setEBDirichlet instead of setEBHomogDirichlet then we assume posisbly inhomogeneous
+    m_is_eb_inhomog = true;
+
     const int ncomp = getNComp();
     if (m_eb_phi[amrlev] == nullptr) {
         const int mglev = 0;
@@ -324,6 +339,9 @@ MLEBABecLap::setEBDirichlet (int amrlev, const MultiFab& phi, Real beta)
 void
 MLEBABecLap::setEBDirichlet (int amrlev, const MultiFab& phi, Vector<Real> const& hv_beta)
 {
+    // If we call setEBDirichlet instead of setEBHomogDirichlet then we assume posisbly inhomogeneous
+    m_is_eb_inhomog = true;
+
     const int ncomp = getNComp();
     if (m_eb_phi[amrlev] == nullptr) {
         const int mglev = 0;
@@ -386,6 +404,9 @@ MLEBABecLap::setEBDirichlet (int amrlev, const MultiFab& phi, Vector<Real> const
 void
 MLEBABecLap::setEBHomogDirichlet (int amrlev, const MultiFab& beta)
 {
+    // If we call setEBHomogDirichlet instead of setEBDirichlet then we assume posisbly inhomogeneous
+    m_is_eb_inhomog = false;
+
     const int ncomp = getNComp();
     const int beta_ncomp = beta.nComp();
     AMREX_ALWAYS_ASSERT(beta_ncomp == 1 or beta_ncomp == ncomp);
@@ -458,6 +479,9 @@ MLEBABecLap::setEBHomogDirichlet (int amrlev, const MultiFab& beta)
 void
 MLEBABecLap::setEBHomogDirichlet (int amrlev, Real beta)
 {
+    // If we call setEBHomogDirichlet instead of setEBDirichlet then we assume posisbly inhomogeneous
+    m_is_eb_inhomog = false;
+
     const int ncomp = getNComp();
     if (m_eb_phi[amrlev] == nullptr) {
         const int mglev = 0;
@@ -516,6 +540,9 @@ MLEBABecLap::setEBHomogDirichlet (int amrlev, Real beta)
 void
 MLEBABecLap::setEBHomogDirichlet (int amrlev, Vector<Real> const& hv_beta)
 {
+    // If we call setEBHomogDirichlet instead of setEBDirichlet then we assume posisbly inhomogeneous
+    m_is_eb_inhomog = false;
+
     const int ncomp = getNComp();
     if (m_eb_phi[amrlev] == nullptr) {
         const int mglev = 0;
@@ -773,19 +800,38 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
             Array4<Real const> const& ccfab = ccent->const_array(mfi);
             Array4<Real const> const& bebfab = (is_eb_dirichlet)
                 ? m_eb_b_coeffs[amrlev][mglev]->const_array(mfi) : foo;
-            Array4<Real const> const& phiebfab = (is_eb_dirichlet && m_is_eb_inhomog)
+            Array4<Real const> const& phiebfab = (is_eb_dirichlet && is_eb_inhomog)
                 ? m_eb_phi[amrlev]->const_array(mfi) : foo;
 
             bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
             bool beta_on_centroid = (m_beta_loc == Location::FaceCentroid);
 
+#ifdef AMREX_USE_DPCPP
+            // xxxxx DPCPP todo: kernel size
+            Vector<Array4<Real const> > htmp = {ccfab,bafab,bcfab,bebfab,phiebfab,
+                                                AMREX_D_DECL(apxfab,apyfab,apzfab),
+                                                AMREX_D_DECL(fcxfab,fcyfab,fczfab)};
+            Gpu::AsyncArray<Array4<Real const> > dtmp(htmp.data(), 5+2*AMREX_SPACEDIM);
+            auto dp = dtmp.data();
+#endif
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( bx, tbx,
             {
                  mlebabeclap_adotx(tbx, yfab, xfab, afab, AMREX_D_DECL(bxfab,byfab,bzfab),
                                    ccmfab, flagfab, vfracfab,
+#ifdef AMREX_USE_DPCPP
+#if (AMREX_SPACEDIM == 2)
+                                   dp[5], dp[6],         // apx, apy
+                                   dp[7], dp[8],         // fcx, fcy
+#else if (AMREX_SPACEDIM == 3)
+                                   dp[5], dp[6], dp[ 7], // apx, apy, apz
+                                   dp[8], dp[9], dp[10], // fcx, fcy, fcz
+#endif
+                                   dp[0], dp[1], dp[2], dp[3], dp[4], // ccfab, bafab, bcfab, bebfab, phiebfab,
+#else // not USE_DPCPP
                                    AMREX_D_DECL(apxfab,apyfab,apzfab),
-                                   AMREX_D_DECL(fcxfab,fcyfab,fczfab), 
+                                   AMREX_D_DECL(fcxfab,fcyfab,fczfab),
                                    ccfab, bafab, bcfab, bebfab, phiebfab,
+#endif
                                    is_eb_dirichlet, is_eb_inhomog, dxinvarr,
                                    ascalar, bscalar, ncomp, beta_on_centroid, phi_on_centroid);
             });
@@ -848,7 +894,8 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
     const MultiCutFab* bcent = (factory) ? &(factory->getBndryCent()) : nullptr;
     const MultiCutFab* ccent = (factory) ? &(factory->getCentroid()) : nullptr;
 
-    bool is_eb_dirichlet =  isEBDirichlet();
+    const bool is_eb_dirichlet =  isEBDirichlet();
+    const bool is_eb_inhomog   = m_is_eb_inhomog;
 
     Array4<Real const> foo;
 
@@ -901,6 +948,14 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
         }
         else if (fabtyp == FabType::regular)
         {
+#ifdef AMREX_USE_DPCPP
+            // xxxxx DPCPP todo: kernel size
+            Vector<Array4<Real const> > htmp = {AMREX_D_DECL(f0fab,f2fab,f4fab),
+                                                AMREX_D_DECL(f1fab,f3fab,f5fab)};
+            Gpu::AsyncArray<Array4<Real const> > dtmp(htmp.data(), 2*AMREX_SPACEDIM);
+            auto dp = dtmp.data();
+#endif
+
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( vbx, thread_box,
             {
                 abec_gsrb(thread_box, solnfab, rhsfab, alpha, afab,
@@ -908,8 +963,15 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
                           AMREX_D_DECL(bxfab, byfab, bzfab),
                           AMREX_D_DECL(m0,m2,m4),
                           AMREX_D_DECL(m1,m3,m5),
+#ifdef AMREX_USE_DPCPP
+                          dp[0],dp[1],dp[2],dp[3],
+#if (AMREX_SPACEDIM == 3)
+                          dp[4],dp[5],
+#endif
+#else
                           AMREX_D_DECL(f0fab,f2fab,f4fab),
                           AMREX_D_DECL(f1fab,f3fab,f5fab),
+#endif
                           vbx, redblack, nc);
             });
         }
@@ -933,6 +995,41 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
             bool beta_on_centroid = (m_beta_loc == Location::FaceCentroid);
             bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
 
+#ifdef AMREX_USE_DPCPP
+            // xxxxx DPCPP todo: kernel size
+            Vector<Array4<Real const> > htmp = {rhsfab,afab,
+                                                AMREX_D_DECL(bxfab,byfab,bzfab),
+                                                AMREX_D_DECL(f0fab,f2fab,f4fab),
+                                                AMREX_D_DECL(f1fab,f3fab,f5fab)};
+            Vector<Array4<int const> > htmp2 = {AMREX_D_DECL(m0,m2,m4),
+                                                AMREX_D_DECL(m1,m3,m5)};
+            Gpu::AsyncArray<Array4<Real const> > dtmp(htmp.data(), 2+3*AMREX_SPACEDIM);
+            Gpu::AsyncArray<Array4<int const> > dtmp2(htmp2.data(), 2*AMREX_SPACEDIM);
+            auto dp = dtmp.data();
+            auto dp2 = dtmp2.data();
+            AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( vbx, thread_box,
+            {
+                mlebabeclap_gsrb(thread_box, solnfab, dp[0], alpha, dp[1],
+                                 AMREX_D_DECL(dhx, dhy, dhz),
+                                 AMREX_D_DECL(dp[2],dp[3],dp[4]),
+                                 dp2[0],dp2[1],dp2[2],dp2[3],
+#if (AMREX_SPACEDIM == 3)
+                                 dp2[4],dp2[5],
+#endif
+#if (AMREX_SPACEDIM == 2)
+                                 dp[4],dp[5],dp[6],dp[7],
+#else
+                                 dp[5],dp[6],dp[7],dp[8],dp[9],dp[10],
+#endif
+                                 ccmfab, flagfab, vfracfab,
+                                 AMREX_D_DECL(apxfab,apyfab,apzfab),
+                                 AMREX_D_DECL(fcxfab,fcyfab,fczfab),
+                                 bafab, bcfab, ccfab, bebfab,
+                                 is_eb_dirichlet, is_eb_inhomog,
+                                 beta_on_centroid, phi_on_centroid,
+                                 vbx, redblack, nc);
+            });
+#else
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( vbx, thread_box,
             {
                 mlebabeclap_gsrb(thread_box, solnfab, rhsfab, alpha, afab,
@@ -946,9 +1043,11 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
                                  AMREX_D_DECL(apxfab,apyfab,apzfab),
                                  AMREX_D_DECL(fcxfab,fcyfab,fczfab),
                                  bafab, bcfab, ccfab, bebfab,
-                                 is_eb_dirichlet, beta_on_centroid, phi_on_centroid,
+                                 is_eb_dirichlet, is_eb_inhomog,
+                                 beta_on_centroid, phi_on_centroid,
                                  vbx, redblack, nc);
             });
+#endif
         }
     }
 }
@@ -1031,7 +1130,7 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
         Array4<EBCellFlag const> const& flagfab = flags->const_array(mfi);
 
         bool is_eb_dirichlet =  isEBDirichlet();
-        Array4<Real const> const& phiebfab = (is_eb_dirichlet && m_is_eb_inhomog)
+        Array4<Real const> const& phiebfab = (is_eb_dirichlet && is_eb_inhomog)
             ? m_eb_phi[amrlev]->const_array(mfi) : foo;
 
         AMREX_D_TERM(Real dhx = m_b_scalar*dxinv[0];,
@@ -1041,19 +1140,50 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
         bool beta_on_centroid = (m_beta_loc == Location::FaceCentroid);
         bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
 
+#ifdef AMREX_USE_DPCPP
+        // xxxxx DPCPP todo: kernel size
+#if (AMREX_SPACEDIM == 2)
+        Vector<Array4<Real const> > htmp = {apx, fcx, bxcoef, apy, fcy, bycoef};
+#elif (AMREX_SPACEDIM == 3)
+        Vector<Array4<Real const> > htmp = {apx, fcx, bxcoef, apy, fcy, bycoef, apz, fcz, bzcoef};
+#endif
+        Gpu::AsyncArray<Array4<Real const> > dtmp(htmp.data(), htmp.size());
+        auto dp = dtmp.data();
+#endif
+
         AMREX_LAUNCH_HOST_DEVICE_LAMBDA (
             xbx, txbx,
             {
-                mlebabeclap_flux_x(txbx, fx, AMREX_D_DECL(apx,apy,apz),
-                                   fcx, vfracfab, phi, bxcoef, msk, 
-                                   flagfab, ccfab, bcfab, phiebfab,
+#ifdef AMREX_USE_DPCPP
+                auto apx = dp[0];
+                auto apy = dp[3];
+                auto fcx = dp[1];
+                auto bxcoef = dp[2];
+#endif
+
+#if (AMREX_SPACEDIM == 2)
+                mlebabeclap_flux_x(txbx, fx, apx, apy,      fcx, vfracfab, phi, bxcoef, 
+#elif (AMREX_SPACEDIM == 3)
+                mlebabeclap_flux_x(txbx, fx, apx, apy, apz, fcx, vfracfab, phi, bxcoef, 
+#endif
+                                   msk, flagfab, ccfab, bcfab, phiebfab,
                                    is_eb_dirichlet, is_eb_inhomog,
                                    dhx, face_only, ncomp, xbx,
                                    beta_on_centroid, phi_on_centroid);
             }
             , ybx, tybx,
             {
-                mlebabeclap_flux_y(tybx, fy,  AMREX_D_DECL(apx,apy,apz),
+#ifdef AMREX_USE_DPCPP
+                auto apx = dp[0];
+                auto apy = dp[3];
+                auto fcy = dp[4];
+                auto bycoef = dp[5];
+#endif
+#if (AMREX_SPACEDIM == 2)
+                mlebabeclap_flux_y(tybx, fy, apx, apy, 
+#elif (AMREX_SPACEDIM == 3)
+                mlebabeclap_flux_y(tybx, fy, apx, apy, apz,
+#endif
                                    fcy, vfracfab, phi, bycoef, msk, 
                                    flagfab, ccfab, bcfab, phiebfab,
                                    is_eb_dirichlet, is_eb_inhomog,
@@ -1061,11 +1191,19 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
                                    beta_on_centroid, phi_on_centroid);
             }
 #if (AMREX_SPACEDIM == 3)
+                auto apz = dp[6];
             , zbx, tzbx,
             {
-                mlebabeclap_flux_z(tzbx, fz, apx, apy, apz,
+#ifdef AMREX_USE_DPCPP
+                auto apx = dp[0];
+                auto apy = dp[3];
+                auto apz = dp[6];
+                auto fcz = dp[7];
+                auto bzcoef = dp[8];
+#endif
+                mlebabeclap_flux_z(tzbx, fz, apx, apy, apz, 
                                    fcz, vfracfab, phi, bzcoef, msk, 
-                                   flagfab, ccfab, bcfab, phiebfab,
+                                   flagfab, ccfab, bcfab, phiebfac, 
                                    is_eb_dirichlet, is_eb_inhomog,
                                    dhz, face_only, ncomp, zbx,
                                    beta_on_centroid, phi_on_centroid);
@@ -1085,18 +1223,41 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
                      Real dhy = m_b_scalar*dxinv[1];,
                      Real dhz = m_b_scalar*dxinv[2];);
 
+#ifdef AMREX_USE_DPCPP
+        // xxxxx DPCPP todo: kernel size
+#if (AMREX_SPACEDIM == 2)
+        Vector<Array4<Real const> > htmp = {apx, bxcoef, apy, bycoef};
+#elif (AMREX_SPACEDIM == 3)
+        Vector<Array4<Real const> > htmp = {apx, bxcoef, apy, bycoef, apz, bzcoef};
+#endif
+        Gpu::AsyncArray<Array4<Real const> > dtmp(htmp.data(), htmp.size());
+        auto dp = dtmp.data();
+#endif
+
         AMREX_LAUNCH_HOST_DEVICE_LAMBDA (
             xbx, txbx,
             {
+#ifdef AMREX_USE_DPCPP
+                auto apx = dp[0];
+                auto bxcoef = dp[1];
+#endif
                 mlebabeclap_flux_x_0(txbx, fx, apx, phi, bxcoef, dhx, face_only, ncomp, xbx);
             }
             , ybx, tybx,
             {
+#ifdef AMREX_USE_DPCPP
+                auto apy = dp[2];
+                auto bycoef = dp[3];
+#endif
                 mlebabeclap_flux_y_0(tybx, fy, apy, phi, bycoef, dhy, face_only, ncomp, ybx);
             }
 #if (AMREX_SPACEDIM == 3)
             , zbx, tzbx,
             {
+#ifdef AMREX_USE_DPCPP
+                auto apz = dp[4];
+                auto bzcoef = dp[5];
+#endif
                 mlebabeclap_flux_z_0(tzbx, fz, apz, phi, bzcoef, dhz, face_only, ncomp, zbx);
             }
 #endif
@@ -1198,11 +1359,11 @@ MLEBABecLap::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
 
             Array4<EBCellFlag const> const& flagfab = flags->const_array(mfi);
 
-            Array4<Real const> const& phiebfab = (is_eb_dirichlet && m_is_eb_inhomog)
-                ? m_eb_phi[amrlev]->const_array(mfi) : foo;
-
             const bool phi_on_centroid = (m_phi_loc == Location::CellCentroid);
             const bool is_eb_inhomog   = m_is_eb_inhomog;
+
+            Array4<Real const> const& phiebfab = (is_eb_dirichlet && is_eb_inhomog)
+                ? m_eb_phi[amrlev]->const_array(mfi) : foo;
 
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA (
                 fbx, txbx,
@@ -1337,6 +1498,13 @@ MLEBABecLap::normalize (int amrlev, int mglev, MultiFab& mf) const
 
             bool phi_on_centroid = (m_phi_loc == Location::CellCentroid);
 
+#ifdef AMREX_USE_DPCPP
+            // xxxxx DPCPP todo: kernel size
+            Vector<Array4<Real const> > htmp = {AMREX_D_DECL(fcxfab,fcyfab,fczfab)};
+            Gpu::AsyncArray<Array4<Real const> > dtmp(htmp.data(), AMREX_SPACEDIM);
+            auto dp = dtmp.data();
+#endif
+
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( bx, tbx,
             {
                 mlebabeclap_normalize(tbx, fab, ascalar, afab,
@@ -1344,7 +1512,11 @@ MLEBABecLap::normalize (int amrlev, int mglev, MultiFab& mf) const
                                       AMREX_D_DECL(bxfab, byfab, bzfab),
                                       ccmfab, flagfab, vfracfab,
                                       AMREX_D_DECL(apxfab,apyfab,apzfab),
+#ifdef AMREX_USE_DPCPP
+                                      AMREX_D_DECL(dp[0],dp[1],dp[2]),
+#else
                                       AMREX_D_DECL(fcxfab,fcyfab,fczfab),
+#endif
                                       bafab, bcfab, ccfab, bebfab, is_eb_dirichlet, 
                                       phi_on_centroid, ncomp);
             });
@@ -1434,7 +1606,7 @@ MLEBABecLap::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
 
     int m_is_inhomog = bc_mode == BCMode::Inhomogeneous;
     int flagbc = m_is_inhomog;
-    m_is_eb_inhomog = (s_mode == StateMode::Solution);
+    bool is_eb_inhomog = ((s_mode == StateMode::Solution) and m_is_eb_inhomog);
     const int imaxorder = maxorder;
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(imaxorder <= 4, "MLEBABecLap::applyBC: maxorder too high");
 
@@ -1683,7 +1855,7 @@ MLEBABecLap::getEBFluxes (const Vector<MultiFab*>& a_flux, const Vector<MultiFab
                     Array4<Real const> const& ccfab = ccent->const_array(mfi);
                     Array4<Real const> const& bebfab = (is_eb_dirichlet)
                         ? m_eb_b_coeffs[amrlev][mglev]->const_array(mfi) : foo;
-                    Array4<Real const> const& phiebfab = (is_eb_dirichlet && m_is_eb_inhomog)
+                    Array4<Real const> const& phiebfab = (is_eb_dirichlet && is_eb_inhomog)
                         ? m_eb_phi[amrlev]->const_array(mfi) : foo;
 
                     AMREX_HOST_DEVICE_FOR_4D ( bx, ncomp, i, j, k, n,
