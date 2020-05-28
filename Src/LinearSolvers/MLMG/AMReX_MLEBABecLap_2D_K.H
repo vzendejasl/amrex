@@ -129,7 +129,7 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
     
                 Real phib = is_eb_inhomog ? phieb(i,j,k,n) : 0.0;
 
-                if (phi_on_centroid) {
+                if (!phi_on_centroid) {
                     Real bctx = bcent(i,j,k,0);
                     Real bcty = bcent(i,j,k,1);
                     Real dx_eb = get_dx_eb(kappa);
@@ -443,7 +443,7 @@ void mlebabeclap_gsrb (Box const& box,
                         (dhx*(apxm*sxm-apxp*sxp) +
                          dhy*(apym*sym-apyp*syp));
 
-                    Real rho = vfrcinv *
+                    Real rho = -vfrcinv *
                         (dhx*(apxm*fxm-apxp*fxp) +
                          dhy*(apym*fym-apyp*fyp));
 
@@ -482,9 +482,10 @@ void mlebabeclap_gsrb (Box const& box,
     
                             int ii = i - static_cast<int>(sx);
                             int jj = j - static_cast<int>(sy);
-                   
+
                             Real phig_gamma = (1.0 + gx*sx + gy*sy + gx*gy*sx*sy);
-                            Real phig = (    - gx*sx         - gx*gy*sx*sy) * phi(ii,j ,k,n)
+                            Real phig =                        phig_gamma   * phi( i, j,k,n)
+                                +       (    - gx*sx         - gx*gy*sx*sy) * phi(ii, j,k,n)
                                 +       (            - gy*sy - gx*gy*sx*sy) * phi(i ,jj,k,n)
                                 +       (                    + gx*gy*sx*sy) * phi(ii,jj,k,n);
     
@@ -510,7 +511,7 @@ void mlebabeclap_gsrb (Box const& box,
                     }
 
                     if (!phi_on_centroid) {
-                        Real res = rhs(i,j,k,n) - rho;
+                        Real res = rhs(i,j,k,n) - (alpha*a(i,j,k)*phi(i,j,k,n) - rho);
                         phi(i,j,k,n) += res/(gamma-delta);
                     } else if (phi_on_centroid) {
                         Real res = rhs(i,j,k,n) - rho;
