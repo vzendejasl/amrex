@@ -530,8 +530,8 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
                         Amatrix(a_ind_eb,4) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,2);
                         Amatrix(a_ind_eb,5) = Amatrix(a_ind_eb,2) * Amatrix(a_ind_eb,2);
                     } else { // Neumann bc's on EB face
-                        Real dapx = apx(ii-1,jj,k)-apx(ii,j,k);
-                        Real dapy = apy(ii,jj-1,k)-apy(ii,jj,k);;
+                        Real dapx = apx(ii,jj,k)-apx(ii+1,jj,k);
+                        Real dapy = apy(ii,jj,k)-apy(ii,jj+1,k);;
                         Real anorm = std::hypot(dapx,dapy);
                         Real norm_x = dapx / anorm;
                         Real norm_y = dapy / anorm;
@@ -623,8 +623,8 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
                         Amatrix(a_ind_eb,4) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,2);
                         Amatrix(a_ind_eb,5) = Amatrix(a_ind_eb,2) * Amatrix(a_ind_eb,2);
                     } else { // Neumann bc's on EB face
-                        Real dapx = apx(ii-1,jj,k)-apx(ii,j,k);
-                        Real dapy = apy(ii,jj-1,k)-apy(ii,jj,k);;
+                        Real dapx = apx(ii,jj,k)-apx(ii+1,jj,k);
+                        Real dapy = apy(ii,jj,k)-apy(ii,jj+1,k);;
                         Real anorm = std::hypot(dapx,dapy);
                         Real norm_x = dapx / anorm;
                         Real norm_y = dapy / anorm;
