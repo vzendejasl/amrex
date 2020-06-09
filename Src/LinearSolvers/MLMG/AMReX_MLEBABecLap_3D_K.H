@@ -424,6 +424,9 @@ void mlebabeclap_gsrb (Box const& box,
 {
     constexpr Real omega = 1.15;
 
+    // By the time we get here we have put the problem in residual-correction form so we
+    //    treat Dirichlet bc's as homogeneous bc's
+    bool treat_eb_as_inhomog = false;
     Array4<Real const> phieb;  // This is just a dummy array 
 
     const auto vlo = amrex::lbound(vbox);
@@ -523,7 +526,7 @@ void mlebabeclap_gsrb (Box const& box,
                         Real yloc_on_xface = fcx(i,j,k,0);
                         Real zloc_on_xface = fcx(i,j,k,1);
                         fxm = grad_x_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                                                         yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+                                                         yloc_on_xface,zloc_on_xface,is_eb_dirichlet,treat_eb_as_inhomog);
                         fxm *= bX(i,j,k,n);
                         oxm = 0.0;
                     }
@@ -562,7 +565,7 @@ void mlebabeclap_gsrb (Box const& box,
                         Real yloc_on_xface = fcx(i+1,j,k,0);
                         Real zloc_on_xface = fcx(i+1,j,k,1);
                         fxp = grad_x_of_phi_on_centroids(i+1,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                                                         yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+                                                         yloc_on_xface,zloc_on_xface,is_eb_dirichlet,treat_eb_as_inhomog);
                         fxp *= bX(i+1,j,k,n);
                         oxp = 0.0;
                     }
@@ -600,7 +603,7 @@ void mlebabeclap_gsrb (Box const& box,
                         Real xloc_on_yface = fcy(i,j,k,0);
                         Real zloc_on_yface = fcy(i,j,k,1);
                         fym = grad_y_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                                                         xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+                                                         xloc_on_yface,zloc_on_yface,is_eb_dirichlet,treat_eb_as_inhomog);
                         fym *= bY(i,j,k,n);
                         oym = 0.0;
                     }
@@ -638,7 +641,7 @@ void mlebabeclap_gsrb (Box const& box,
                        Real xloc_on_yface = fcy(i,j+1,k,0);
                        Real zloc_on_yface = fcy(i,j+1,k,1);
                        fyp = grad_y_of_phi_on_centroids(i,j+1,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                                                        xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+                                                        xloc_on_yface,zloc_on_yface,is_eb_dirichlet,treat_eb_as_inhomog);
                        fyp *= bY(i,j+1,k,n);
                         oyp = 0.0;
                     }
@@ -676,7 +679,7 @@ void mlebabeclap_gsrb (Box const& box,
                         Real xloc_on_zface = fcz(i,j,k,0);
                         Real yloc_on_zface = fcz(i,j,k,1);
                         fzm = grad_y_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                                                         xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
+                                                         xloc_on_zface,yloc_on_zface,is_eb_dirichlet,treat_eb_as_inhomog);
                         fzm *= bZ(i,j,k,n);
                         ozm = 0.0;
                     }
@@ -714,7 +717,7 @@ void mlebabeclap_gsrb (Box const& box,
                         Real xloc_on_zface = fcz(i,j,k+1,0);
                         Real yloc_on_zface = fcz(i,j,k+1,1);
                         fzp = grad_z_of_phi_on_centroids(i,j,k+1,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                                                         xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
+                                                         xloc_on_zface,yloc_on_zface,is_eb_dirichlet,treat_eb_as_inhomog);
                         fzp *= bZ(i,j,k+1,n);
                         ozp = 0.0;
                     }
@@ -790,10 +793,6 @@ void mlebabeclap_gsrb (Box const& box,
                             rho += -vfrcinv*(-dhx)*feb;
 
                         } else if (phi_on_centroid) {
-                            // Note because we have put the problem in residual form before getting here,
-                            // we can assume that phieb is zero everywhere now.  So we send in a flag
-                            // saying the bc's are homogeneous
-                            bool treat_eb_as_inhomog = false;
                             Real dphidn = grad_eb_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,
                                                                       anrmx,anrmy,anrmz,treat_eb_as_inhomog);
                             Real feb = dphidn * ba(i,j,k) * beb(i,j,k,n);
