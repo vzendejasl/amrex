@@ -1191,7 +1191,6 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
                                    beta_on_centroid, phi_on_centroid);
             }
 #if (AMREX_SPACEDIM == 3)
-                auto apz = dp[6];
             , zbx, tzbx,
             {
 #ifdef AMREX_USE_DPCPP
@@ -1203,7 +1202,7 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
 #endif
                 mlebabeclap_flux_z(tzbx, fz, apx, apy, apz, 
                                    fcz, vfracfab, phi, bzcoef, msk, 
-                                   flagfab, ccfab, bcfab, phiebfac, 
+                                   flagfab, ccfab, bcfab, phiebfab, 
                                    is_eb_dirichlet, is_eb_inhomog,
                                    dhz, face_only, ncomp, zbx,
                                    beta_on_centroid, phi_on_centroid);
