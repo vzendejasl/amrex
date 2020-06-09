@@ -419,7 +419,7 @@ void mlebabeclap_gsrb (Box const& box,
                        Array4<Real const> const& ba, Array4<Real const> const& bcent,
                        Array4<Real const> const& ccent, Array4<Real const> const& beb,
                        bool is_eb_dirichlet, bool is_eb_inhomog,
-                       , bool beta_on_centroid, bool phi_on_centroid,
+                       bool beta_on_centroid, bool phi_on_centroid,
                        Box const& vbox, int redblack, int ncomp) noexcept
 {
     constexpr Real omega = 1.15;
@@ -522,7 +522,7 @@ void mlebabeclap_gsrb (Box const& box,
                                (apxm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0) ) {
                         Real yloc_on_xface = fcx(i,j,k,0);
                         Real zloc_on_xface = fcx(i,j,k,1);
-                        fxm = grad_x_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                        fxm = grad_x_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
                                                          yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
                         fxm *= bX(i,j,k,n);
                         oxm = 0.0;
@@ -561,7 +561,7 @@ void mlebabeclap_gsrb (Box const& box,
                               (apxp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i+1,j,k) != 1.0) ) {
                         Real yloc_on_xface = fcx(i+1,j,k,0);
                         Real zloc_on_xface = fcx(i+1,j,k,1);
-                        fxp = grad_x_of_phi_on_centroids(i+1,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                        fxp = grad_x_of_phi_on_centroids(i+1,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
                                                          yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
                         fxp *= bX(i+1,j,k,n);
                         oxp = 0.0;
@@ -599,7 +599,7 @@ void mlebabeclap_gsrb (Box const& box,
                                (apym != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j-1,k) != 1.0) ) {
                         Real xloc_on_yface = fcy(i,j,k,0);
                         Real zloc_on_yface = fcy(i,j,k,1);
-                        fym = grad_y_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                        fym = grad_y_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
                                                          xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
                         fym *= bY(i,j,k,n);
                         oym = 0.0;
@@ -637,7 +637,7 @@ void mlebabeclap_gsrb (Box const& box,
                               (apyp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j+1,k) != 1.0) ) {
                        Real xloc_on_yface = fcy(i,j+1,k,0);
                        Real zloc_on_yface = fcy(i,j+1,k,1);
-                       fyp = grad_y_of_phi_on_centroids(i,j+1,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                       fyp = grad_y_of_phi_on_centroids(i,j+1,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
                                                         xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
                        fyp *= bY(i,j+1,k,n);
                         oyp = 0.0;
@@ -675,7 +675,7 @@ void mlebabeclap_gsrb (Box const& box,
                                (apzm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j,k-1) != 1.0) ) {
                         Real xloc_on_zface = fcz(i,j,k,0);
                         Real yloc_on_zface = fcz(i,j,k,1);
-                        fzm = grad_y_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                        fzm = grad_y_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
                                                          xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
                         fzm *= bZ(i,j,k,n);
                         ozm = 0.0;
@@ -713,7 +713,7 @@ void mlebabeclap_gsrb (Box const& box,
                                (apzp != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j,k+1) != 1.0) ) {
                         Real xloc_on_zface = fcz(i,j,k+1,0);
                         Real yloc_on_zface = fcz(i,j,k+1,1);
-                        fzp = grad_z_of_phi_on_centroids(i,j,k+1,n,x,phieb,flag,ccent,bcent,apx,apy,apz,
+                        fzp = grad_z_of_phi_on_centroids(i,j,k+1,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
                                                          xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
                         fzp *= bZ(i,j,k+1,n);
                         ozp = 0.0;
@@ -793,9 +793,9 @@ void mlebabeclap_gsrb (Box const& box,
                             // Note because we have put the problem in residual form before getting here,
                             // we can assume that phieb is zero everywhere now.  So we send in a flag
                             // saying the bc's are homogeneous
-                            bool is_eb_inhomog = false;
+                            bool treat_eb_as_inhomog = false;
                             Real dphidn = grad_eb_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,
-                                                                      anrmx,anrmy,anrmz,is_eb_inhomog);
+                                                                      anrmx,anrmy,anrmz,treat_eb_as_inhomog);
                             Real feb = dphidn * ba(i,j,k) * beb(i,j,k,n);
                             rho += -vfrcinv*(-dhx)*feb;
                         }
@@ -840,9 +840,9 @@ void mlebabeclap_flux_x (Box const& box, Array4<Real> const& fx,
                     Real fracz = (ccm(i-1,j,kk) || ccm(i,j,kk)) ? amrex::Math::abs(fcx(i,j,k,1)) : 0.0;
                     if (!beta_on_centroid)
                     {
-                        fxm = (1.0-fracy)*(1.0-fracz)*fxm +
-                                   fracy *(1.0-fracz)*bX(i,jj,k ,n)*(sol(i,jj,k ,n)-sol(i-1,jj,k ,n)) +
-                                   fracz *(1.0-fracy)*bX(i,j ,kk,n)*(sol(i,j ,kk,n)-sol(i-1,j ,kk,n)) +
+                        fxm = (1.0-fracy)*(1.0-fracz)*bX(i, j, k,n)*(sol(i, j, k,n)-sol(i-1, j, k,n)) +
+                                   fracy *(1.0-fracz)*bX(i,jj, k,n)*(sol(i,jj, k,n)-sol(i-1,jj, k,n)) +
+                                   fracz *(1.0-fracy)*bX(i, j,kk,n)*(sol(i, j,kk,n)-sol(i-1, j,kk,n)) +
                                    fracy*      fracz *bX(i,jj,kk,n)*(sol(i,jj,kk,n)-sol(i-1,jj,kk,n));
                     } 
                     else if (beta_on_centroid)
@@ -901,9 +901,9 @@ void mlebabeclap_flux_y (Box const& box, Array4<Real> const& fy,
                     Real fracz = (ccm(i,j-1,kk) || ccm(i,j,kk)) ? amrex::Math::abs(fcy(i,j,k,1)) : 0.0;
                     if (!beta_on_centroid)
                     {
-                        fym = (1.0-fracx)*(1.0-fracz)*fym +
-                                   fracx *(1.0-fracz)*bY(ii,j,k ,n)*(sol(ii,j,k ,n)-sol(ii,j-1,k ,n)) +
-                                   fracz *(1.0-fracx)*bY(i ,j,kk,n)*(sol(i ,j,kk,n)-sol(i ,j-1,kk,n)) +
+                        fym = (1.0-fracx)*(1.0-fracz)*bY( i,j, k,n)*(sol( i,j, k,n)-sol( i,j-1, k,n)) +
+                                   fracx *(1.0-fracz)*bY(ii,j, k,n)*(sol(ii,j, k,n)-sol(ii,j-1, k,n)) +
+                                   fracz *(1.0-fracx)*bY( i,j,kk,n)*(sol( i,j,kk,n)-sol( i,j-1,kk,n)) +
                                    fracx *     fracz *bY(ii,j,kk,n)*(sol(ii,j,kk,n)-sol(ii,j-1,kk,n));
                     } 
                     else if (beta_on_centroid)
@@ -962,10 +962,10 @@ void mlebabeclap_flux_z (Box const& box, Array4<Real> const& fz,
                     Real fracy = (ccm(i,jj,k-1) || ccm(i,jj,k)) ? amrex::Math::abs(fcz(i,j,k,1)) : 0.0;
                     if (!beta_on_centroid and !phi_on_centroid)
                     {
-                        fzm = (1.0-fracx)*(1.0-fracy)*fzm +
-                            fracx*(1.0-fracy)*bZ(ii,j ,k,n)*(sol(ii,j ,k,n)-sol(ii,j ,k-1,n)) +
-                            fracy*(1.0-fracx)*bZ(i ,jj,k,n)*(sol(i ,jj,k,n)-sol(i ,jj,k-1,n)) +
-                            fracx*     fracy *bZ(ii,jj,k,n)*(sol(ii,jj,k,n)-sol(ii,jj,k-1,n));
+                        fzm = (1.0-fracx)*(1.0-fracy)*bZ( i, j,k,n)*(sol( i, j,k,n)-sol( i, j,k-1,n)) +
+                                   fracx *(1.0-fracy)*bZ(ii, j,k,n)*(sol(ii, j,k,n)-sol(ii, j,k-1,n)) +
+                              (1.0-fracx)*     fracy *bZ( i,jj,k,n)*(sol( i,jj,k,n)-sol( i,jj,k-1,n)) +
+                                   fracx *     fracy *bZ(ii,jj,k,n)*(sol(ii,jj,k,n)-sol(ii,jj,k-1,n));
                     } 
                     else if (beta_on_centroid and !phi_on_centroid)
                     {

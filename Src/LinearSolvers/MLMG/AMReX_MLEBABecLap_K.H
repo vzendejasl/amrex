@@ -505,8 +505,10 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
     for (int ii = i-1; ii <= i; ii++) // Normal to face
         for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
         {
+            amrex::Print() << "TESTING FLAG " << ii << " " << jj << std::endl;
             if (!flag(ii,jj,k).isCovered())
             {
+                amrex::Print() << "  FLAG NOT COVERED " << ii << " " << jj << std::endl;
                 int a_ind  = (jj-(j-1)) + 3*(i-ii);
     
                 Real x_off = static_cast<Real>(ii-i) + 0.5;
@@ -521,6 +523,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
 
                 if (!flag(ii,jj,k).isRegular())
                 {
+                    amrex::Print() << "  FLAG NOT REGULAR " << ii << " " << jj << " " << is_eb_dirichlet << std::endl;
                     int a_ind_eb  = a_ind + 6;
                     if (is_eb_dirichlet) {
                         Amatrix(a_ind_eb,0) = 1.0;
@@ -545,6 +548,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
                     }
                 }
             }
+            amrex::Print() << "  DONE WITH " << ii << " " << jj << std::endl;
         }
 
     // Make the RHS = A^T v
