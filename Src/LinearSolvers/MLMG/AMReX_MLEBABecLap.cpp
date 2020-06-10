@@ -695,6 +695,16 @@ MLEBABecLap::prepareForSolve ()
         }
     }
 
+    // Make the diagonal coefficient if phi_on_centroid
+    if ( m_eb_phi[0] && (m_phi_loc  == Location::CellCentroid) ) {
+        for (int amrlev = m_num_amr_levels-1; amrlev >= 0; --amrlev) {
+            for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev) {
+                amrex::Print() << "CALLING CALC " << amrlev << " " << mglev << std::endl;
+                CalcCoeff0 (amrlev, mglev, m_coeff0[amrlev][mglev]);
+            }
+        }
+    }
+
     m_is_singular.clear();
     m_is_singular.resize(m_num_amr_levels, false);
     auto itlo = std::find(m_lobc[0].begin(), m_lobc[0].end(), BCType::Dirichlet);
@@ -1605,7 +1615,6 @@ MLEBABecLap::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
 
     int m_is_inhomog = bc_mode == BCMode::Inhomogeneous;
     int flagbc = m_is_inhomog;
-    bool is_eb_inhomog = ((s_mode == StateMode::Solution) and m_is_eb_inhomog);
     const int imaxorder = maxorder;
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(imaxorder <= 4, "MLEBABecLap::applyBC: maxorder too high");
 
@@ -1866,6 +1875,124 @@ MLEBABecLap::getEBFluxes (const Vector<MultiFab*>& a_flux, const Vector<MultiFab
                     });
                 }
             }
+        }
+    }
+}
+
+void
+MLEBABecLap::CalcCoeff0 (int amrlev, int mglev, MultiFab& out)
+{
+    BL_PROFILE("MLEBABecLap::CalcCoeff0()");
+
+    const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
+    AMREX_D_TERM(const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];,
+                 const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];,
+                 const MultiFab& bzcoef = m_b_coeffs[amrlev][mglev][2];);
+    const iMultiFab& ccmask = m_cc_mask[amrlev][mglev];
+    
+    const auto dxinvarr = m_geom[amrlev][mglev].InvCellSizeArray();
+
+    auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get());
+    const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr;
+    const MultiFab* vfrac = (factory) ? &(factory->getVolFrac()) : nullptr;
+    auto area = (factory) ? factory->getAreaFrac()
+        : Array<const MultiCutFab*,AMREX_SPACEDIM>{AMREX_D_DECL(nullptr,nullptr,nullptr)};
+    auto fcent = (factory) ? factory->getFaceCent()
+        : Array<const MultiCutFab*,AMREX_SPACEDIM>{AMREX_D_DECL(nullptr,nullptr,nullptr)};
+    const MultiCutFab* barea = (factory) ? &(factory->getBndryArea()) : nullptr;
+    const MultiCutFab* bcent = (factory) ? &(factory->getBndryCent()) : nullptr;
+    const auto         ccent = (factory) ? &(factory->getCentroid()) : nullptr;
+
+    const bool is_eb_dirichlet =  isEBDirichlet();
+    const bool is_eb_inhomog = m_is_eb_inhomog;
+
+    const int ncomp = getNComp();
+
+    Array4<Real const> foo;
+
+    const Real ascalar = m_a_scalar;
+    const Real bscalar = m_b_scalar;
+
+    // Create a dummy MF that we can use to compute the diagonal coefficient
+    MultiFab mf_dummy;
+    mf_dummy.define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1);
+    mf_dummy.setVal(0.0);
+
+    MFItInfo mfi_info;
+    if (Gpu::notInLaunchRegion()) mfi_info.EnableTiling().SetDynamic(true);
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    for (MFIter mfi(out, mfi_info); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        Array4<Real> const& xfab = mf_dummy.array(mfi);
+        Array4<Real> const& yfab = out.array(mfi);
+        Array4<Real const> const& afab = acoef.const_array(mfi);
+        AMREX_D_TERM(Array4<Real const> const& bxfab = bxcoef.const_array(mfi);,
+                     Array4<Real const> const& byfab = bycoef.const_array(mfi);,
+                     Array4<Real const> const& bzfab = bzcoef.const_array(mfi););
+
+        auto fabtyp = (flags) ? (*flags)[mfi].getType(bx) : FabType::regular;
+
+        if (fabtyp == FabType::covered) {
+            AMREX_HOST_DEVICE_PARALLEL_FOR_4D( bx, ncomp, i, j, k, n,
+            {
+                xfab(i,j,k,n) = 0.0;
+            });
+        } else if (fabtyp == FabType::regular) {
+          // We don't create m_coeff0 here because we will never use it for regular FABs
+
+        } else {
+            Array4<int const>        const&   ccmfab = ccmask.const_array(mfi);
+            Array4<EBCellFlag const> const&  flagfab = flags->const_array(mfi);
+            Array4<Real       const> const& vfracfab = vfrac->const_array(mfi);
+            AMREX_D_TERM(Array4<Real const> const& apxfab = area[0]->const_array(mfi);,
+                         Array4<Real const> const& apyfab = area[1]->const_array(mfi);,
+                         Array4<Real const> const& apzfab = area[2]->const_array(mfi););
+            AMREX_D_TERM(Array4<Real const> const& fcxfab = fcent[0]->const_array(mfi);,
+                         Array4<Real const> const& fcyfab = fcent[1]->const_array(mfi);,
+                         Array4<Real const> const& fczfab = fcent[2]->const_array(mfi););
+            Array4<Real const> const& bafab = barea->const_array(mfi);
+            Array4<Real const> const& bcfab = bcent->const_array(mfi);
+            Array4<Real const> const& ccfab = ccent->const_array(mfi);
+            Array4<Real const> const& bebfab = (is_eb_dirichlet)
+                ? m_eb_b_coeffs[amrlev][mglev]->const_array(mfi) : foo;
+            Array4<Real const> const& phiebfab = (is_eb_dirichlet && is_eb_inhomog)
+                ? m_eb_phi[amrlev]->const_array(mfi) : foo;
+
+            bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
+            bool beta_on_centroid = (m_beta_loc == Location::FaceCentroid);
+
+#ifdef AMREX_USE_DPCPP
+            // xxxxx DPCPP todo: kernel size
+            Vector<Array4<Real const> > htmp = {ccfab,bafab,bcfab,bebfab,phiebfab,
+                                                AMREX_D_DECL(apxfab,apyfab,apzfab),
+                                                AMREX_D_DECL(fcxfab,fcyfab,fczfab)};
+            Gpu::AsyncArray<Array4<Real const> > dtmp(htmp.data(), 5+2*AMREX_SPACEDIM);
+            auto dp = dtmp.data();
+#endif
+            AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( bx, tbx,
+            {
+                 mlebabeclap_cc0(tbx, yfab, xfab, afab, AMREX_D_DECL(bxfab,byfab,bzfab),
+                                  ccmfab, flagfab, vfracfab,
+#ifdef AMREX_USE_DPCPP
+#if (AMREX_SPACEDIM == 2)
+                                  dp[5], dp[6],         // apx, apy
+                                  dp[7], dp[8],         // fcx, fcy
+#else if (AMREX_SPACEDIM == 3)
+                                  dp[5], dp[6], dp[ 7], // apx, apy, apz
+                                  dp[8], dp[9], dp[10], // fcx, fcy, fcz
+#endif
+                                  dp[0], dp[1], dp[2], dp[3], dp[4], // ccfab, bafab, bcfab, bebfab, phiebfab,
+#else // not USE_DPCPP
+                                  AMREX_D_DECL(apxfab,apyfab,apzfab),
+                                  AMREX_D_DECL(fcxfab,fcyfab,fczfab),
+                                  ccfab, bafab, bcfab, bebfab, phiebfab,
+#endif
+                                  is_eb_dirichlet, is_eb_inhomog, dxinvarr,
+                                  ascalar, bscalar, ncomp, beta_on_centroid, phi_on_centroid);
+            });
         }
     }
 }
