@@ -686,9 +686,10 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
     for (int ii = i-1; ii <= i+1; ii++)
         for (int jj = j-1; jj <= j+1; jj++)
         {
+
             if (!flag(ii,jj,k).isCovered())
             {
-                int a_ind  = (jj-(j-1)) + 3*(i-ii);
+                int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
     
                 Real x_off = static_cast<Real>(ii-i);
                 Real y_off = static_cast<Real>(jj-j);
@@ -707,6 +708,7 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
         }
 
     // Columns 3 : [x*x  x*y  y*y]
+
     for (int irow = 0; irow < 18; irow++)
     {
        Amatrix(irow,3) =  Amatrix(irow,1) * Amatrix(irow,1);
@@ -723,8 +725,8 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
             for (int jj = j-1; jj <= j+1; jj++)
                 if (!flag(ii,jj,k).isCovered())
                 {
-                    int a_ind  = (jj-(j-1)) + 3*(i-ii);
-                    rhs(irow) += Amatrix(a_ind,irow)*  phi(ii,jj,k,n);
+                    int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
+                    rhs(irow) += Amatrix(a_ind,irow) * phi(ii,jj,k,n);
                     if (flag(ii,jj,k).isSingleValued() and not (i==ii and j==jj) 
                         and is_eb_inhomog)
                         rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
@@ -1327,7 +1329,7 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
          {
             if (!flag(ii,jj,kk).isCovered())
             {
-                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(k-kk);
+                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-1));
 
                 Real x_off = static_cast<Real>(ii-i) - bcent(i,j,k,0);
                 Real y_off = static_cast<Real>(jj-j) - bcent(i,j,k,1);
@@ -1369,7 +1371,7 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
              for (int ii = i-1; ii <= i+1; ii++)
                 if (!flag(ii,jj,kk).isCovered())
                 {
-                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(k-kk);
+                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-1));
 
                     rhs(irow) += Amatrix(a_ind,irow)*  phi(ii,jj,kk,n);
 
