@@ -418,8 +418,8 @@ void mlebabeclap_gsrb (Box const& box,
                        Array4<Real const> const& fcz,
                        Array4<Real const> const& ba, Array4<Real const> const& bcent,
                        Array4<Real const> const& ccent, Array4<Real const> const& beb,
-                       bool is_eb_dirichlet, bool is_eb_inhomog,
-                       bool beta_on_centroid, bool phi_on_centroid,
+                       Array4<Real const> const& cc0, 
+                       bool is_eb_dirichlet, bool beta_on_centroid, bool phi_on_centroid,
                        Box const& vbox, int redblack, int ncomp) noexcept
 {
     constexpr Real omega = 1.15;

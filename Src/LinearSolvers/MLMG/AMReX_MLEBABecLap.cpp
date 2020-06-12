@@ -698,10 +698,10 @@ MLEBABecLap::prepareForSolve ()
     // Make the diagonal coefficient if phi_on_centroid
     if ( m_eb_phi[0] && (m_phi_loc  == Location::CellCentroid) ) {
         for (int amrlev = m_num_amr_levels-1; amrlev >= 0; --amrlev) {
-            for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev) {
-                amrex::Print() << "CALLING CALC " << amrlev << " " << mglev << std::endl;
-                CalcCoeff0 (amrlev, mglev, m_coeff0[amrlev][mglev]);
-            }
+//          for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev) {
+            int mglev = 0;
+            CalcCoeff0 (amrlev, mglev, m_coeff0[amrlev][mglev]);
+//          }
         }
     }
 
@@ -813,8 +813,10 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
             Array4<Real const> const& phiebfab = (is_eb_dirichlet && is_eb_inhomog)
                 ? m_eb_phi[amrlev]->const_array(mfi) : foo;
 
-            bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
             bool beta_on_centroid = (m_beta_loc == Location::FaceCentroid);
+            bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
+
+            bool treat_phi_as_on_centroid = ( phi_on_centroid and (mglev == 0) );
 
 #ifdef AMREX_USE_DPCPP
             // xxxxx DPCPP todo: kernel size
@@ -843,7 +845,7 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
                                    ccfab, bafab, bcfab, bebfab, phiebfab,
 #endif
                                    is_eb_dirichlet, is_eb_inhomog, dxinvarr,
-                                   ascalar, bscalar, ncomp, beta_on_centroid, phi_on_centroid);
+                                   ascalar, bscalar, ncomp, beta_on_centroid, treat_phi_as_on_centroid);
             });
         }
     }
@@ -905,7 +907,6 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
     const MultiCutFab* ccent = (factory) ? &(factory->getCentroid()) : nullptr;
 
     const bool is_eb_dirichlet =  isEBDirichlet();
-    const bool is_eb_inhomog   = m_is_eb_inhomog;
 
     Array4<Real const> foo;
 
@@ -1004,6 +1005,11 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
 
             bool beta_on_centroid = (m_beta_loc == Location::FaceCentroid);
             bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
+            bool treat_phi_as_on_centroid = ( phi_on_centroid and (mglev == 0) );
+
+            // m_coeff0 is only defined if phi_on_centroid is true
+            Array4<Real const> const& cc0fab = (treat_phi_as_on_centroid)
+                ? m_coeff0[amrlev][mglev].const_array(mfi) : foo;
 
 #ifdef AMREX_USE_DPCPP
             // xxxxx DPCPP todo: kernel size
@@ -1034,9 +1040,9 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
                                  ccmfab, flagfab, vfracfab,
                                  AMREX_D_DECL(apxfab,apyfab,apzfab),
                                  AMREX_D_DECL(fcxfab,fcyfab,fczfab),
-                                 bafab, bcfab, ccfab, bebfab,
-                                 is_eb_dirichlet, is_eb_inhomog,
-                                 beta_on_centroid, phi_on_centroid,
+                                 bafab, bcfab, ccfab, bebfab, cc0fab,
+                                 is_eb_dirichlet,
+                                 beta_on_centroid, treat_phi_as_on_centroid,
                                  vbx, redblack, nc);
             });
 #else
@@ -1052,9 +1058,9 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
                                  ccmfab, flagfab, vfracfab,
                                  AMREX_D_DECL(apxfab,apyfab,apzfab),
                                  AMREX_D_DECL(fcxfab,fcyfab,fczfab),
-                                 bafab, bcfab, ccfab, bebfab,
-                                 is_eb_dirichlet, is_eb_inhomog,
-                                 beta_on_centroid, phi_on_centroid,
+                                 bafab, bcfab, ccfab, bebfab, cc0fab,
+                                 is_eb_dirichlet,
+                                 beta_on_centroid, treat_phi_as_on_centroid,
                                  vbx, redblack, nc);
             });
 #endif
@@ -1506,6 +1512,7 @@ MLEBABecLap::normalize (int amrlev, int mglev, MultiFab& mf) const
             Array4<Real const> const& ccfab = ccent->const_array(mfi);
 
             bool phi_on_centroid = (m_phi_loc == Location::CellCentroid);
+            bool treat_phi_as_on_centroid = (phi_on_centroid and (mglev == 0));
 
 #ifdef AMREX_USE_DPCPP
             // xxxxx DPCPP todo: kernel size
@@ -1527,7 +1534,7 @@ MLEBABecLap::normalize (int amrlev, int mglev, MultiFab& mf) const
                                       AMREX_D_DECL(fcxfab,fcyfab,fczfab),
 #endif
                                       bafab, bcfab, ccfab, bebfab, is_eb_dirichlet, 
-                                      phi_on_centroid, ncomp);
+                                      treat_phi_as_on_centroid, ncomp);
             });
         }
     }
@@ -1884,6 +1891,8 @@ MLEBABecLap::CalcCoeff0 (int amrlev, int mglev, MultiFab& out)
 {
     BL_PROFILE("MLEBABecLap::CalcCoeff0()");
 
+    AMREX_ALWAYS_ASSERT(mglev == 0);
+
     const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
     AMREX_D_TERM(const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];,
                  const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];,
@@ -2017,6 +2026,4 @@ MLEBABecLap::makePETSc () const
     return petsc_solver;
 }
 #endif
-
-
 }

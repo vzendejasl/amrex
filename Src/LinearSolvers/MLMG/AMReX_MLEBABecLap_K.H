@@ -694,15 +694,31 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
                 Real x_off = static_cast<Real>(ii-i);
                 Real y_off = static_cast<Real>(jj-j);
     
-                Amatrix(a_ind,0) = 1.0;
-                Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) - bcent(i,j,k,0);
-                Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) - bcent(i,j,k,1);
+                if (flag(i,j,k).isConnected((jj-j),(ii-i),0))
+                {
+                   Amatrix(a_ind,0) = 1.0;
+                   Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) - bcent(i,j,k,0);
+                   Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) - bcent(i,j,k,1);
+                }
+#if 1
+                if (i == ii and j == jj)
+                {
+                   Amatrix(a_ind,0) *= 2.0;
+                   Amatrix(a_ind,1) *= 2.0;
+                   Amatrix(a_ind,2) *= 2.0;
+                }
+#endif
 
-                if (!flag(ii,jj,k).isRegular() and not(i==ii and j==jj))
+                if (flag(i,j,k).isConnected((jj-j),(ii-i),0) and !flag(ii,jj,k).isRegular())
                 {
                     Amatrix(a_ind+9,0) = 1.0;
                     Amatrix(a_ind+9,1) = x_off + bcent(ii,jj,k,0) - bcent(i,j,k,0);
                     Amatrix(a_ind+9,2) = y_off + bcent(ii,jj,k,1) - bcent(i,j,k,1);
+
+#if 1
+                    if (i == ii and j == jj)
+                        Amatrix(a_ind+9,0) *= 2.0;
+#endif
                 }
             }
         }
@@ -727,8 +743,7 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
                 {
                     int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
                     rhs(irow) += Amatrix(a_ind,irow) * phi(ii,jj,k,n);
-                    if (flag(ii,jj,k).isSingleValued() and not (i==ii and j==jj) 
-                        and is_eb_inhomog)
+                    if (flag(ii,jj,k).isSingleValued() and is_eb_inhomog)
                         rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
                 }
     }
@@ -1375,8 +1390,7 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
 
                     rhs(irow) += Amatrix(a_ind,irow)*  phi(ii,jj,kk,n);
 
-                    if (flag(ii,jj,kk).isSingleValued() and not (i==ii and j==jj and k==kk) 
-                        and is_eb_inhomog)
+                    if (flag(ii,jj,kk).isSingleValued() and is_eb_inhomog)
                         rhs(irow) += Amatrix(a_ind+27,irow)*phieb(ii,jj,kk,n);
                 }
     }
