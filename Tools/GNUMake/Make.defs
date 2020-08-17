@@ -48,15 +48,12 @@ ifeq ($(USE_HIP),TRUE)
   COMP := hip
   HIP_PLATFORM = $(shell hipconfig --compiler)
   ifeq ($(HIP_PLATFORM),nvcc)
-  $(error HIP_PLATFORM nvcc is not supported at this time. Use USE_CUDA to compile for NVIDIA platforms)
-#    If nvcc is supported, put this back.
-#    CUDA_ARCH ?= 60
-#    CUDA_MAX_THREADS ?= 256
-#    CUDA_MAXREGCOUNT ?= 255
+    $(error HIP_PLATFORM nvcc is not supported at this time. Use USE_CUDA to compile for NVIDIA platforms)
   else ifeq ($(HIP_PLATFORM),hcc)
-# do nothing special for now, but also don't abort
+    $(error HIP_PLATFORM=hcc is no longer supported)
+  else ifeq ($(HIP_PLATFORM),clang)
   else
-    $(error only HIP_PLATFORM=hcc is supported)
+    $(error Unknown HIP_PLATFORM=$(HIP_PLATFORM))
   endif
 endif
 
@@ -159,12 +156,6 @@ ifdef BOUND_CHECK
   BOUND_CHECK := $(strip $(BOUND_CHECK))
 else
   BOUND_CHECK := FALSE
-endif
-
-ifdef BACKTRACE
-  BACKTRACE := $(strip $(BACKTRACE))
-else
-  BACKTRACE := FALSE
 endif
 
 ifdef EXPORT_DYNAMIC
@@ -282,6 +273,12 @@ else
   USE_SENSEI_INSITU := FALSE
 endif
 
+ifdef USE_HDF5
+  USE_HDF5 := $(strip $(USE_HDF5))
+else
+  USE_HDF5 := FALSE
+endif
+
 ifdef EBASE
   EBASE := $(strip $(EBASE))
 else
@@ -292,6 +289,22 @@ ifdef USE_FORCE_INLINE
   USE_FORCE_INLINE := $(strip $(USE_FORCE_INLINE))
 else
   USE_FORCE_INLINE := FALSE
+endif
+
+ifdef WARN_ALL
+  WARN_ALL := $(strip $(WARN_ALL))
+else
+ifeq ($(DEBUG),TRUE)
+  WARN_ALL := TRUE
+else
+  WARN_ALL := FALSE
+endif
+endif
+
+ifdef WARN_ERROR
+  WARN_ERROR := $(strip $(WARN_ERROR))
+else
+  WARN_ERROR := FALSE
 endif
 
 ifdef USE_GPU_PRAGMA
@@ -318,6 +331,18 @@ else
   FIX_NVCC_PTHREAD := FALSE
 endif
 
+ifdef GPU_WARN_CAPTURE_THIS
+  GPU_WARN_CAPTURE_THIS := $(strip $(GPU_WARN_CAPTURE_THIS))
+else
+  GPU_WARN_CAPTURE_THIS := TRUE
+endif
+
+ifdef GPU_ERROR_CAPTURE_THIS
+  GPU_ERROR_CAPTURE_THIS := $(strip $(GPU_ERROR_CAPTURE_THIS))
+else
+  GPU_ERROR_CAPTURE_THIS := TRUE
+endif
+
 SKIP_LINKING ?= FALSE
 USE_COMPILE_PIC ?= FALSE
 
@@ -338,7 +363,7 @@ CHECKFORT       = $(AMREX_HOME)/Tools/typechecker/typechecker.py
 MKCONFIG        = $(AMREX_HOME)/Tools/libamrex/mkconfig.py
 MKPKGCONFIG     = $(AMREX_HOME)/Tools/libamrex/mkpkgconfig.py
 
-DEPFLAGS        = -M
+DEPFLAGS        = -MM
 
 RANLIB          = ranlib
 
@@ -371,6 +396,8 @@ ifdef AMREX_CCOMP
     AMREX_CCOMP = cray
   else ifeq ($(lowercase_amrex_comp),pgi)
     AMREX_CCOMP = pgi
+  else ifeq ($(lowercase_amrex_comp),hpcsdk)
+    AMREX_CCOMP = hpcsdk
   else ifeq ($(lowercase_amrex_comp),ibm)
     AMREX_CCOMP = ibm
   else ifeq ($(lowercase_amrex_comp),$(filter $(lowercase_amrex_comp),llvm clang clang++))
@@ -382,7 +409,7 @@ ifdef AMREX_CCOMP
   else ifeq ($(lowercase_amrex_comp),nec)
     AMREX_CCOMP = nec
   else
-    $(error Unknown compiler $(AMREX_CCOMP). Supported compilers are gnu, intel, dpcpp, cray, pgi, ibm, llvm, nag, and nec)
+    $(error Unknown compiler $(AMREX_CCOMP). Supported compilers are gnu, intel, dpcpp, cray, pgi, hpcsdk, ibm, llvm, nag, and nec)
   endif
 endif
 
@@ -414,6 +441,11 @@ else ifeq ($(lowercase_comp),pgi)
   AMREX_CCOMP ?= pgi
   $(info Loading $(AMREX_HOME)/Tools/GNUMake/comps/pgi.mak...)
   include        $(AMREX_HOME)/Tools/GNUMake/comps/pgi.mak
+else ifeq ($(lowercase_comp),hpcsdk)
+  AMREX_FCOMP ?= hpcsdk
+  AMREX_CCOMP ?= hpcsdk
+  $(info Loading $(AMREX_HOME)/Tools/GNUMake/comps/hpcsdk.mak...)
+  include        $(AMREX_HOME)/Tools/GNUMake/comps/hpcsdk.mak
 else ifeq ($(lowercase_comp),ibm)
   AMREX_FCOMP ?= ibm
   AMREX_CCOMP ?= ibm
@@ -447,7 +479,7 @@ else ifeq ($(lowercase_comp),hip)
   $(info Loading $(AMREX_HOME)/Tools/GNUMake/comps/hip.mak...)
   include        $(AMREX_HOME)/Tools/GNUMake/comps/hip.mak
 else
-  $(error Unknown compiler $(COMP). Supported compilers are gnu, intel, dpcpp, cray, pgi, ibm, llvm, nag, and nec)
+  $(error Unknown compiler $(COMP). Supported compilers are gnu, intel, dpcpp, cray, pgi, hpcsdk, ibm, llvm, nag, and nec)
 endif
 
 CXXFLAGS += $(XTRA_CXXFLAGS)
@@ -520,13 +552,6 @@ ifeq ($(TEST),TRUE)
     ifneq ($(DEBUG),TRUE)
         DebugSuffix := .TEST
     endif
-endif
-
-ifeq ($(BACKTRACE),TRUE)
-    CPPFLAGS += -DAMREX_BACKTRACING -DAMREX_TESTING
-    BTSuffix := .BT
-else
-    BTSuffix :=
 endif
 
 ifdef CRAY_CPU_TARGET
@@ -644,14 +669,7 @@ ifeq ($(USE_HIP),TRUE)
 
     endif
 
-    DEFINES += -DAMREX_USE_HIP
-
-    ifeq ($(HIP_PLATFORM),nvcc)
-        $(error HIP_PLATFORM nvcc is not supported at this time. Use USE_CUDA to compile for NVIDIA platforms.)
- #       DEFINES += -DAMREX_USE_CUDA -DAMREX_HIP_PLATFORM_NVCC
-    else ifeq ($(HIP_PLATFORM),hcc)
-        DEFINES += -DAMREX_HIP_PLATFORM_HCC
-    endif
+    DEFINES += -DAMREX_USE_HIP -DAMREX_HIP_PLATFORM=$(HIP_PLATFORM)
 
     GPUSuffix := .HIP
 
@@ -664,11 +682,13 @@ else ifeq ($(USE_CUDA),TRUE)
 
     ifeq ($(lowercase_comp),pgi)
         LINK_WITH_FORTRAN_COMPILER=TRUE
+    else ifeq ($(lowercase_comp),hpcsdk)
+        LINK_WITH_FORTRAN_COMPILER=TRUE
     else ifeq ($(lowercase_comp),ibm)
         LINK_WITH_FORTRAN_COMPILER=TRUE
     else ifeq ($(lowercase_comp),gnu)
     else
-        $(error CUDA can only be used with COMP=pgi or ibm or gnu)
+        $(error CUDA can only be used with COMP=pgi or hpcsdk or ibm or gnu)
     endif
 
     include $(AMREX_HOME)/Tools/GNUMake/comps/nvcc.mak
@@ -706,7 +726,7 @@ else ifeq ($(USE_CUDA),TRUE)
 
     GPUSuffix := .CUDA
 
-    ifeq ($(lowercase_comp),$(filter $(lowercase_comp),ibm pgi))
+    ifeq ($(lowercase_comp),$(filter $(lowercase_comp),ibm pgi hpcsdk))
       DEFINES += -DAMREX_LAUNCH='attributes(global)'
       DEFINES += -DAMREX_DEVICE='attributes(device)'
       DEFINES += -DAMREX_CUDA_FORT_GLOBAL='attributes(global)'
@@ -840,7 +860,7 @@ ifeq ($(USE_RPATH),TRUE)
 endif
 LDFLAGS	+= -L. $(addprefix -L, $(LIBRARY_LOCATIONS))
 
-machineSuffix	= $(lowercase_comp)$(archSuffix)$(PrecisionSuffix)$(DebugSuffix)$(ProfSuffix)$(MProfSuffix)$(BTSuffix)$(MPISuffix)$(UPCXXSuffix)$(OMPSuffix)$(ACCSuffix)$(GPUSuffix)$(CUPTISuffix)$(USERSuffix)
+machineSuffix	= $(lowercase_comp)$(archSuffix)$(PrecisionSuffix)$(DebugSuffix)$(ProfSuffix)$(MProfSuffix)$(MPISuffix)$(UPCXXSuffix)$(OMPSuffix)$(ACCSuffix)$(GPUSuffix)$(CUPTISuffix)$(USERSuffix)
 
 optionsSuffix	= $(DIM)d.$(machineSuffix)
 
@@ -964,6 +984,11 @@ ifeq ($(USE_SENSEI_INSITU),TRUE)
   include        $(AMREX_HOME)/Tools/GNUMake/tools/Make.sensei
 endif
 
+ifeq ($(USE_HDF5),TRUE)
+  $(info Loading $(AMREX_HOME)/Tools/GNUMake/packages/Make.hdf5...)
+  include        $(AMREX_HOME)/Tools/GNUMake/packages/Make.hdf5
+endif
+
 ifneq ("$(wildcard $(AMREX_HOME)/Tools/GNUMake/Make.local)","")
   $(info Loading $(AMREX_HOME)/Tools/GNUMake/Make.local...)
   include        $(AMREX_HOME)/Tools/GNUMake/Make.local
@@ -1038,40 +1063,40 @@ else ifeq ($(USE_CUDA),TRUE)
 
     DEFINES += -DAMREX_GPU_MAX_THREADS=$(CUDA_MAX_THREADS)
 
-    comm := ,
-    space :=
-    space +=
-
     ifneq ($(LINK_WITH_FORTRAN_COMPILER),TRUE)
       LINKFLAGS = $(NVCC_FLAGS)
-      # we are using nvcc for linking
-      libraries := $(subst -Wl$(comm),-Xlinker=,$(libraries))
-      ifeq ($(FIX_NVCC_PTHREAD),TRUE)
-        libraries := $(subst -pthread,-Xcompiler$(space)-pthread,$(libraries))
-      endif
       AMREX_LINKER = nvcc
     endif
 
-    ifeq ($(USE_MPI),TRUE)
+    ifeq ($(nvcc_forward_unknowns),0)
 
-      ifneq ($(findstring Open MPI, $(shell mpicxx -showme:version 2>&1)),)
+      comm := ,
+      space :=
+      space +=
 
+      ifeq ($(AMREX_LINKER),nvcc)
+        libraries := $(subst -Wl$(comm),-Xlinker=,$(libraries))
         ifeq ($(FIX_NVCC_PTHREAD),TRUE)
-          OMPI_CXXFLAGS_ORIG = $(shell mpicxx -showme:compile)
-          export OMPI_CXXFLAGS := $(subst -pthread,-Xcompiler$(space)-pthread,$(OMPI_CXXFLAGS_ORIG))
-
-          OMPI_CFLAGS_ORIG = $(shell mpicc -showme:compile)
-          export OMPI_CFLAGS := $(subst -pthread,-Xcompiler$(space)-pthread,$(OMPI_CXXFLAGS_ORIG))
-
-          # If we're compiling with PGI, it doesn't know -pthread, replace
-          # with -lpthread.
-
-          OMPI_FCFLAGS_ORIG = $(shell mpif90 -showme:compile)
-          export OMPI_FCFLAGS := $(subst -pthread,-lpthread,$(OMPI_FCFLAGS_ORIG))
+          libraries := $(subst -pthread,-Xcompiler$(space)-pthread,$(libraries))
         endif
-
       endif
 
-    endif
+      ifeq ($(USE_MPI),TRUE)
+
+        ifneq ($(findstring Open MPI, $(shell mpicxx -showme:version 2>&1)),)
+
+          ifeq ($(FIX_NVCC_PTHREAD),TRUE)
+            OMPI_CXXFLAGS_ORIG = $(shell mpicxx -showme:compile)
+            export OMPI_CXXFLAGS := $(subst -pthread,-Xcompiler$(space)-pthread,$(OMPI_CXXFLAGS_ORIG))
+
+            OMPI_CFLAGS_ORIG = $(shell mpicc -showme:compile)
+            export OMPI_CFLAGS := $(subst -pthread,-Xcompiler$(space)-pthread,$(OMPI_CXXFLAGS_ORIG))
+          endif
+
+        endif # Open MPI
+
+      endif # USE_MPI
+
+    endif # nvcc_forward_unknowns == 0
 
 endif

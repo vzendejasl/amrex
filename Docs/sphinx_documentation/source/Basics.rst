@@ -279,6 +279,34 @@ run with
 
 to change the value of :cpp:`ncells` and :cpp:`hydro.cfl`.
 
+Sometimes an application code may want to set a default that differs from the
+default in AMReX.  In this case, it is often convenient to define a function that
+sets the variable(s), and pass the name of that function to :cpp:`amrex::Initialize`.
+As an example, we may define :cpp:`add_par` to set :cpp:`extend_domain_face`
+to true if it hasn't already been set in the inputs file.
+
+.. highlight:: c++
+
+::
+
+    void add_par () {
+       ParmParse pp("eb2");
+       if(not pp.contains("extend_domain_face")) {
+          pp.add("extend_domain_face",true);
+       }
+    };
+
+Then we would pass :cpp:`add_par` into :cpp:`amrex::Initialize`:
+
+.. highlight:: c++
+
+::
+
+    amrex::Initialize(argc, argv, true, MPI_COMM_WORLD, add_par);
+
+This value replaces the current default value of false in AMReX itself, but
+can still be over-written by setting a value in the inputs file.
+
 
 .. _sec:basics:initialize:
 
@@ -347,7 +375,7 @@ arguments.
     main2d*.exe inputs amrex.v=1 amrex.fpe_trap_invalid=1 -- -tao_monitor
 
 then AMReX will parse the inputs file and the optional AMReX's command
-line arguments, but will ignore everything after "--".
+line arguments, but will ignore everything after the double dashes.
 
 .. _sec:basics:amrgrids:
 
@@ -2470,13 +2498,51 @@ Debugging
 Debugging is an art.  Everyone has their own favorite method.  Here we
 offer a few tips we have found to be useful.
 
-Compiling in debug mode (e.g., ``make DEBUG=TRUE``) and running with
-``ParmParse`` parameter ``amrex.fpe_trap_invalid=1`` can be helpful.
-In debug mode, many compiler debugging flags are turned on and all
-``MultiFab`` data are initialized to signaling NaNs.  The
-``amrex.fpe_trap_invalid`` parameter will result in backtrace files
-when floating point exception occurs.  One can then examine those
-files to track down the origin of the issue.
+To help debugging, AMReX handles various signals in the C standard
+library raised in the runs.  This gives us a chance to print out more
+information using Linux/Unix backtrace capability.  The signals
+include seg fault, interruption by the user (control-c), assertion
+errors, and floating point exceptions (NaNs, divided by zero and
+overflow).  The handling of seg fault, assertion errors and
+interruption by control-C are enabled by default.  Note that
+``AMREX_ASSERT()`` is only on when compiled with ``DEBUG=TRUE`` or
+``USE_ASSERTION=TRUE`` in GNU make, or with ``-DCMAKE_BUILD_TYPE=Debug`` or
+``-DENABLE_ASSERTIONS=YES`` in CMake.  The trapping of floating point exceptions is not
+enabled by default unless the code is compiled with ``DEBUG=TRUE`` in GNU make, or with
+``-DCMAKE_BUILD_TYPE=Debug`` or ``-DENABLE_FPE=YES`` in CMake to turn on compiler flags
+if supported.  Alternatively, one can always use runtime parameters to control the
+handling of floating point exceptions: ``amrex.fpe_trap_invalid`` for
+NaNs, ``amrex.fpe_trap_zero`` for division by zero and
+``amrex.fpe_trap_overflow`` for overflow.  To more effectively trap the
+use of uninitialized values, AMReX also initializes ``FArrayBox``\ s in
+``MulitFab``\ s and arrays allocated by ``bl_allocate`` to signaling NaNs when it is compiled
+with ``TEST=TRUE`` or ``DEBUG=TRUE`` in GNU make, or with ``-DCMAKE_BUILD_TYPE=Debug`` in CMake.
+One can also control the setting for ``FArrayBox`` using the runtime parameter, ``fab.init_snan``.
+
+One can get more information than the backtrace of the call stack by
+instrumenting the code.  Here is an example.
+You know the line ``Real rho = state(cell,0);`` is causing a segfault.  You
+could add a print statement before that.  But it might print out
+thousands (or even millions) of line before it hits the segfault.  What
+you could do is the following,
+
+.. highlight:: c++
+
+::
+
+   #include <AMReX_BLBackTrace.H>
+
+   std::ostringstream ss;
+   ss << "state.box() = " << state.box() << " cell = " << cell;
+   BL_BACKTRACE_PUSH(ss.str()); // PUSH takes std::string
+
+   Real rho = state(cell,0);  // state is a Fab, and cell is an IntVect.
+
+   BL_BACKTRACE_POP(); // One can omit this line.  In that case,
+                       // there is an implicit POP when "PUSH" is
+                       // out of scope.
+
+When it hits the segfault, you will only see the last pint out.
 
 Writing a ``MultiFab`` to disk with
 

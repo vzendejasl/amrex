@@ -8,9 +8,6 @@ Development generally follows the following ideas:
     Nightly regression testing is used to ensure that no answers
     change (or if they do, that the changes were expected).
 
-    If a change is critical, we can cherry-pick the commit from
-    `development` to `master`.
-
   * Bug fixes, questions and contributions of new features are welcome!
 
        * Bugs should be reported through GitHub issues
@@ -33,15 +30,10 @@ Development generally follows the following ideas:
             distribute, and sublicense such enhancements or derivative works
             thereof, in binary and source code form.
 
-  * On the first workday of each month, we perform a merge of
-    `development` into `master`.  For this merge to take place, we
-    need to be passing the regression tests.
-
-    To accommodate this need, we close the merge window into
-    `development` a few days before the merge day.  While the merge
-    window is closed, only bug fixes should be pushed into
-    `development`.  Once the merge from `development` -> `master` is
-    done, the merge window reopens.
+  * On the first workday of each month, we make a tagged release.  The merge window into
+    `development` is closed a few days before the release day.  While the merge window is closed,
+    only bug fixes should be merged into `development`.  Once the release is done, the merge window
+    reopens.
 
 ## Git workflow
 
@@ -79,9 +71,8 @@ git remote add upstream https://github.com/AMReX-Codes/amrex
 git remote set-url --push upstream https://github.com/<myGithubUsername>/amrex.git
 git fetch upstream
 
-# We recommend setting your development and master branches to track the upstream ones instead of your fork:
+# We recommend setting your development branch to track the upstream one instead of your fork:
 git branch -u upstream/development
-git checkout -t -b master upstream/master
 ```
 Now you are free to play with your fork (for additional information, you can visit the
 [Github fork help page](https://help.github.com/en/articles/fork-a-repo)).
@@ -177,6 +168,57 @@ and you can delete the remote one on your fork with
 git push origin --delete <branch_name>
 ```
 
+Generally speaking, you want to follow the following rules.
+
+  * Do not merge your branch for PR into your local `development` branch that tracks AMReX
+    `development` branch.  Otherwise your local `development` branch will diverge from AMReX
+    `development` branch.
+
+  * Do not commit in your `development` branch that tracks AMReX `development` branch.
+
+  * Always create a new branch based off `development` branch for each pull request, unless you are
+    going to use git to fix it later.
+
+If you have accidentally committed in `development` branch, you can fix it as follows,
+```
+git checkout -b new_branch
+git checkout development
+git reset HEAD~2  # Here 2 is the number of commits you have accidentally committed in development
+git checkout .
+```
+After this, the local `development` should be in sync with AMReX `development` and your recent
+commits have been saved in `new_branch` branch.
+
+If for some reason your PR branch has diverged from AMReX, you can try to fix it as follows.  Before
+you try it, you should back up your code in case things might go wrong.
+```
+git fetch upstream   # assuming upstream is the remote name for the official amrex repo
+git checkout -b xxx upstream/development  # replace xxx with whatever name you like
+git branch -D development
+git checkout -b development upstream/development
+git checkout xxx
+git merge yyy  # here yyy is your PR branch with unclean history
+git rebase -i upstream/development
+```
+You will see something like below in your editor,
+```
+pick 7451d9d commit message a
+pick c4c2459 commit message b
+pick 6fj3g90 commit message c
+```
+This now requires a bit of knowledge on what those commits are, which commits have been merged,
+which commits are actually new.  However, you should only see your only commits.  So it should be
+easy to figure out which commits have already been merged.  Assuming the first two commits have been
+merged, you can drop them by replace `pick` with `drop`,
+```
+drop 7451d9d commit message a
+drop c4c2459 commit message b
+pick 6fj3g90 commit message c
+```
+After saving and then exiting the editor, `git log` should show a clean history based on top of
+`development` branch.  You can also do `git diff yyy..xxx` to make sure nothing new was dropped.  If
+all goes well, you can submit a PR using `xxx` branch.
+Don't worry, if something goes wrong during the rebase, you an always `git rebase --abort` and start over.
 ## Core Developers
 
 People who make a number of substantive contributions will be named

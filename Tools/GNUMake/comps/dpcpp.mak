@@ -27,8 +27,8 @@ F90FLAGS =
 
 ifeq ($(DEBUG),TRUE)
 
-  CXXFLAGS += -g -O0 -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter -Wno-unused-variable #-ftrapv
-  CFLAGS   += -g -O0 -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter -Wno-unused-variable #-ftrapv
+  CXXFLAGS += -g -O0 #-ftrapv
+  CFLAGS   += -g -O0 #-ftrapv
 
   FFLAGS   += -g -O0 -ggdb -fbounds-check -fbacktrace -Wuninitialized -Wunused -ffpe-trap=invalid,zero -finit-real=snan -finit-integer=2147483647 #-ftrapv
   F90FLAGS += -g -O0 -ggdb -fbounds-check -fbacktrace -Wuninitialized -Wunused -ffpe-trap=invalid,zero -finit-real=snan -finit-integer=2147483647 #-ftrapv
@@ -44,15 +44,36 @@ else
 
 endif
 
+CXXFLAGS += -Wno-pass-failed  # disable this warning
+
+ifeq ($(WARN_ALL),TRUE)
+  warning_flags = -Wall -Wextra -Wno-sign-compare -Wunreachable-code -Wnull-dereference
+  warning_flags += -Wfloat-conversion -Wextra-semi
+
+  ifneq ($(USE_CUDA),TRUE)
+    warning_flags += -Wpedantic
+  endif
+
+  ifneq ($(WARN_SHADOW),FALSE)
+    warning_flags += -Wshadow
+  endif
+
+  CXXFLAGS += $(warning_flags) -Woverloaded-virtual
+  CFLAGS += $(warning_flags)
+endif
+
+ifeq ($(WARN_ERROR),TRUE)
+  CXXFLAGS += -Werror
+  CFLAGS += -Werror
+endif
+
 ########################################################################
 
 ifdef CXXSTD
-  CXXSTD := $(strip $(CXXSTD))
-else
-  CXXSTD := c++14
+  CXXFLAGS += -std=$(strip $(CXXSTD))
 endif
 
-CXXFLAGS += -std=$(CXXSTD) -Wno-error=sycl-strict -fsycl -fsycl-unnamed-lambda
+CXXFLAGS += -Wno-error=sycl-strict -fsycl -fsycl-unnamed-lambda
 CFLAGS   += -std=c99
 
 ifneq ($(DEBUG),TRUE)  # There is currently a bug that DEBUG build will crash.
@@ -78,6 +99,11 @@ ifneq ($(DPCPP_SPLIT_KERNEL),FALSE)
   CXXFLAGS += -fsycl-device-code-split=per_kernel
 endif
 endif
+
+# temporary work-around for DPC++ beta08 bug
+#   define "long double" as 64bit for C++ user-defined literals
+#   https://github.com/intel/llvm/issues/2187
+CXXFLAGS += -mlong-double-64
 
 FFLAGS   += -ffixed-line-length-none -fno-range-check -fno-second-underscore
 F90FLAGS += -ffree-line-length-none -fno-range-check -fno-second-underscore -fimplicit-none
@@ -130,7 +156,8 @@ override XTRALIBS += -lgfortran -lquadmath
 
 endif
 
-override XTRAOBJS += $(DPCPP_DIR)/lib/libsycl-glibc.o $(DPCPP_DIR)/lib/libsycl-cmath.o $(DPCPP_DIR)/lib/libsycl-cmath-fp64.o
+override XTRAOBJS += $(DPCPP_DIR)/lib/libsycl-glibc.o
+LDFLAGS += -device-math-lib=fp32,fp64
 
 ifeq ($(FSANITIZER),TRUE)
   override XTRALIBS += -lubsan

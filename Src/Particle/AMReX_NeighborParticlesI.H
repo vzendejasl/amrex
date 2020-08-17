@@ -309,12 +309,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
     local_map.resize(this->numLevels());
     tmp_local_map.resize(this->numLevels());
 
-    int num_threads = 1;
-#ifdef _OPENMP
-#pragma omp parallel
-#pragma omp single
-    num_threads = omp_get_num_threads();
-#endif
+    int num_threads = OpenMP::get_max_threads();
 
     for (int lev = 0; lev < this->numLevels(); ++lev) {
         // resize our temporaries in serial
@@ -339,11 +334,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
             Vector<NeighborCopyTag> tags;
             tags.reserve(AMREX_D_TERM(3, *3, *3));
             for (MyParIter pti(*this, lev); pti.isValid(); ++pti) {
-#ifdef _OPENMP
-                int thread_num = omp_get_thread_num();
-#else
-                int thread_num = 0;
-#endif
+                int thread_num = OpenMP::get_thread_num();
                 const int& grid = pti.index();
                 const int& tile = pti.LocalTileIndex();
                 PairIndex src_index(grid, tile);
@@ -670,7 +661,7 @@ template <int NStructReal, int NStructInt>
 template <class CheckPair>
 void
 NeighborParticleContainer<NStructReal, NStructInt>::
-buildNeighborList (CheckPair check_pair, bool sort) 
+buildNeighborList (CheckPair&& check_pair, bool sort) 
 {
     AMREX_ASSERT(numParticlesOutOfRange(*this, m_num_neighbor_cells) == 0);
 
@@ -714,7 +705,9 @@ buildNeighborList (CheckPair check_pair, bool sort)
             bx.coarsen(ref_fac);
             bx.grow(m_num_neighbor_cells);
             
-            m_neighbor_list[lev][index].build(ptile, bx, geom, check_pair, m_num_neighbor_cells);
+            m_neighbor_list[lev][index].build(ptile, bx, geom,
+                                              std::forward<CheckPair>(check_pair),
+                                              m_num_neighbor_cells);
 #ifndef AMREX_USE_GPU
             const auto& counts = m_neighbor_list[lev][index].GetCounts();
             const auto& list   = m_neighbor_list[lev][index].GetList();

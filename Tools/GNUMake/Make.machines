@@ -10,17 +10,10 @@ else ifdef $(HOST)
   host_name := $(strip $(HOST))
 else
   host_name := $(shell hostname -f)
+  host_name_short := $(shell hostname -s)
 endif
 
 # MACHINES supported
-
-CCSE_MACHINES := angilas atragon baragon battra ebirah gamera garuda gigan
-CCSE_MACHINES += gimantis godzilla gojira hedorah kiryu kumonga manda
-CCSE_MACHINES += megalon mothra rodan varan naphta orga ghidorah
-ifeq ($(host_name), $(findstring $(host_name), $(CCSE_MACHINES)))
-  which_site := ccse
-  which_computer := $(host_name)
-endif
 
 ifeq ($(findstring cori, $(host_name)), cori)
   which_site := nersc
@@ -131,7 +124,8 @@ ifeq ($(findstring raijin, $(host_name)), raijin)
   which_computer := raijin
 endif
 
-ifeq ($(findstring tulip, $(host_name)), tulip)
+ifneq (,$(filter $(host_name_short),poplar redwood tulip))
   which_site := frontier-coe
-  which_computer := tulip
+  which_computer := $(host_name_short)
 endif
+

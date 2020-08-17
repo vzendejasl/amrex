@@ -1,3 +1,87 @@
+# 20.08
+
+  -- New average_down_faces functions that take periodic boundary into account.
+
+  -- Update the documentation for Nsight.
+
+  -- Fix a bug with HDF5 boxcenter data.
+
+  -- New runtime parameter, `eb2.extend_domain_face`, that can be used to extraploate EB information
+     from domain faces.
+
+  -- New GNU Make options for GCC and Clang, `WARN_ALL` and `WARN_ERROR`. `WARN_ALL` turns on more
+     compiler warnings.  `WARN_ERROR` turns warnings into errors.
+
+  -- Fix various compiler warnings.
+
+  -- Fix memory fragmentation issue with communication buffer.
+
+  -- Semi-coarsening support in linear solvers.
+
+  -- Fix virtual particle issues.
+
+  -- Capability to fuse GPU kernel launches.
+
+  -- Make ghost particles support soa data.
+
+  -- CMake: ability to export build tree.
+
+  -- Reset amrex_geometry_module initialization state when finalizing.
+
+  -- Remove Long version of Gatherv.
+
+  -- Optimization of TagBoxArray::collate.
+
+  -- CMake: fix missing PETSc setup in Config file.
+
+  -- BndryFunc for nodal data.
+
+  -- MLMG Hypre fix for singular problems.
+
+  -- Add particle copy filters.
+
+  -- Async output support for particles.
+
+  -- BackgroundThread class.
+
+# 20.07
+
+  -- Nodal hypre solver now supports coarsening before hypre is called.
+
+  -- A new ParmParse parameter, `amrex.the_arena_is_managed` is introduced to set the default memory
+     type of `The_Arena`.
+
+  -- MFIter is now OMP thread safe when it is compiled with GPU support.
+
+  -- Overset support is added to cell-center and tensor linear solvers.
+
+  -- Remove compile time flag, BACKTRACE, for simplicity.
+
+  -- Updates on Blueprint and Ascent.
+
+  -- HDF5 support in GNU Make and CMake.
+
+  -- CMake support for DPC++.
+
+  -- Add -DNDEBUG for non-debug build.
+
+  -- Support for Windows.
+
+  -- Support for ParallelContext in Particles.
+
+  -- Non const iterator for neighbor list.
+
+  -- Tool for comparing single-level plotfiles of all nodalities.
+
+  -- GNU Make: Use -M instead the perl script to generate dependencies.
+
+  -- Particle: Remove directly accessing the m_idata and m_rdata structs internally.
+
+  -- Extend the makeSFC method to take an additional argument where the user can override the number
+     of processes a BoxArray is distributed to.
+
+  -- Turn tiling off by default for gpu.
+
 # 20.06
 
   -- Set a non-default CMAKE_INSTALL_PREFIX only if AMReX is the

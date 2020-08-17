@@ -8,6 +8,11 @@
 add_library( amrex )
 add_library( AMReX::amrex ALIAS amrex )
 
+#
+# Setup parallel backends (any type: inter/intra-node)
+#
+include(AMReXParallelBackends)
+
 # Where to store Fortran modules
 if (CMAKE_Fortran_COMPILER_LOADED)
    set_target_properties( amrex
@@ -32,11 +37,6 @@ if (CMAKE_Fortran_COMPILER_LOADED AND (NOT CMAKE_Fortran_FLAGS) )
       )
 endif ()
 
-
-target_link_libraries(amrex
-   PUBLIC
-   $<BUILD_INTERFACE:Flags_CXX_REQUIRED>
-   )
 
 if (NOT CMAKE_CXX_FLAGS)
    target_link_libraries(amrex
@@ -76,10 +76,6 @@ endif ()
 
 if (ENABLE_LINEAR_SOLVERS)
    add_subdirectory(LinearSolvers)
-   target_link_libraries(amrex
-      PUBLIC
-      $<BUILD_INTERFACE:Flags_Fortran_REQUIRED>
-      )
 endif ()
 
 if (ENABLE_FORTRAN_INTERFACES)
@@ -95,10 +91,6 @@ endif ()
 #
 if (ENABLE_AMRDATA)
    add_subdirectory(Extern/amrdata)
-   target_link_libraries(amrex
-      PUBLIC
-      $<BUILD_INTERFACE:Flags_Fortran_REQUIRED>
-      )
 endif()
 
 if (ENABLE_PROFPARSER)
@@ -147,7 +139,7 @@ if (ENABLE_SUNDIALS)
    add_subdirectory(Extern/SUNDIALS4)
 endif ()
 
-if (ENABLE_CONDUIT)
+if (ENABLE_CONDUIT OR ENABLE_ASCENT)
    add_subdirectory(Extern/Conduit)
 endif ()
 
@@ -186,4 +178,8 @@ endif ()
 # Install amrex  -- Export
 #
 include(AMReXInstallHelpers)
-install_amrex(Flags_CXX Flags_Fortran Flags_FPE)
+set(_amrex_targets Flags_CXX Flags_Fortran Flags_FPE )
+if (ENABLE_DPCPP)
+   list(APPEND _amrex_targets SYCL)
+endif()
+install_amrex(${_amrex_targets})

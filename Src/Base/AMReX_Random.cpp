@@ -8,13 +8,10 @@
 #include <AMReX_BlockMutex.H>
 #include <AMReX_GpuLaunch.H>
 #include <AMReX_GpuDevice.H>
+#include <AMReX_OpenMP.H>
 
 #ifdef AMREX_USE_HIP
 #include <hiprand.hpp>
-#endif
-
-#ifdef _OPENMP
-#include <omp.h>
 #endif
 
 #ifdef AMREX_USE_HIP
@@ -36,16 +33,23 @@ namespace
     constexpr int gpu_nstates_default = 1e5;
 
     int gpu_nstates_h = 0;
+#ifndef AMREX_USE_DPCPP
     AMREX_GPU_DEVICE int gpu_nstates_d = 0;
+#endif
 
     randState_t* d_states_h_ptr = nullptr;
+#ifndef AMREX_USE_DPCPP
     AMREX_GPU_DEVICE randState_t* d_states_d_ptr;
+#endif
 
     amrex::BlockMutex* h_mutex_h_ptr = nullptr;
     amrex::BlockMutex* d_mutex_h_ptr = nullptr;
 
+#ifndef AMREX_USE_DPCPP
     AMREX_GPU_DEVICE
     amrex::BlockMutex* d_mutex_d_ptr = nullptr;
+#endif
+
 #endif
 
 }
@@ -53,23 +57,17 @@ namespace
 void
 amrex::InitRandom (amrex::ULong seed, int nprocs)
 {
-#ifdef _OPENMP
-    nthreads = omp_get_max_threads();
-#else
-    nthreads = 1;
-#endif
+    nthreads = OpenMP::get_max_threads();
     generators.resize(nthreads);
 
 #ifdef _OPENMP
 #pragma omp parallel
+#endif
     {
-        int tid = omp_get_thread_num();
+        int tid = OpenMP::get_thread_num();
         amrex::ULong init_seed = seed + tid*nprocs;
         generators[tid].seed(init_seed);
     }
-#else
-    generators[0].seed(seed);
-#endif
 
 #ifdef AMREX_USE_GPU
     DeallocateRandomSeedDevArray();
@@ -83,6 +81,7 @@ int amrex::get_state (int tid)
 {
 #ifdef AMREX_USE_DPCPP
 // xxxxx DPCPP todo
+    amrex::ignore_unused(tid);
     return 0;
 #else
     // block size must evenly divide # of RNG states so we cut off the excess states
@@ -100,6 +99,7 @@ AMREX_GPU_DEVICE
 void amrex::free_state (int tid)
 {
 #ifdef AMREX_USE_DPCPP
+    amrex::ignore_unused(tid);
 // xxxxx DPCPP todo
 #else
     int bsize = blockDim.x * blockDim.y * blockDim.z;
@@ -137,19 +137,15 @@ amrex::RandomNormal (amrex::Real mean, amrex::Real stddev)
 
 #elif defined(__SYCL_DEVICE_ONLY__)
 
+    amrex::ignore_unused(mean,stddev);
     assert(0);
-    rand = 0.0_rt;
+    rand = Real(0.0);
     return rand;
 
 #else
 
-#ifdef _OPENMP
-    int tid = omp_get_thread_num();
-#else
-    int tid = 0;
-#endif
-
     std::normal_distribution<amrex::Real> distribution(mean, stddev);
+    int tid = OpenMP::get_thread_num();
     rand = distribution(generators[tid]);
 
 #endif
@@ -184,19 +180,15 @@ amrex::Random ()
 #elif defined(__SYCL_DEVICE_ONLY__)
 
     assert(0);
-    rand = 0.0_rt;
+    rand = Real(0.0);
     return rand;
 
 #else     // on the host
 
-#ifdef _OPENMP
-    int tid = omp_get_thread_num();
-#else
-    int tid = 0;
-#endif
-
     std::uniform_real_distribution<amrex::Real> distribution(0.0, 1.0);
+    int tid = OpenMP::get_thread_num();
     rand = distribution(generators[tid]);
+
 #endif
 
     return rand;
@@ -224,19 +216,15 @@ amrex::RandomPoisson (amrex::Real lambda)
 
 #elif defined(__SYCL_DEVICE_ONLY__)
 
+    amrex::ignore_unused(lambda);
     assert(0);
-    rand = 0.0_rt;
+    rand = 0;
     return rand;
 
 #else
 
-#ifdef _OPENMP
-    const auto tid = omp_get_thread_num();
-#else
-    const auto tid = 0;
-#endif
-
     std::poisson_distribution<unsigned int> distribution(lambda);
+    int tid = OpenMP::get_thread_num();
     rand = distribution(generators[tid]);
 
 #endif
@@ -268,17 +256,14 @@ amrex::Random_int (unsigned int n)
 
 #elif defined(__SYCL_DEVICE_ONLY__)
 
+    amrex::ignore_unused(n);
     assert(0);
     return 0;
 
 #else // on the host
 
-#ifdef _OPENMP
-    int tid = omp_get_thread_num();
-#else
-    int tid = 0;
-#endif
     std::uniform_int_distribution<unsigned int> distribution(0, n-1);
+    int tid = OpenMP::get_thread_num();
     return distribution(generators[tid]);
 
 #endif
@@ -287,12 +272,8 @@ amrex::Random_int (unsigned int n)
 AMREX_GPU_HOST amrex::ULong
 amrex::Random_long (amrex::ULong n)
 {
-#ifdef _OPENMP
-    int tid = omp_get_thread_num();
-#else
-    int tid = 0;
-#endif
     std::uniform_int_distribution<amrex::ULong> distribution(0, n-1);
+    int tid = OpenMP::get_thread_num();
     return distribution(generators[tid]);
 }
 
@@ -358,6 +339,8 @@ void amrex::ResetRandomSeed (amrex::ULong seed)
 void
 amrex::ResizeRandomSeed (int N)
 {
+    amrex::ignore_unused(N);
+
     BL_PROFILE("ResizeRandomSeed");
 
 #ifdef AMREX_USE_DPCPP

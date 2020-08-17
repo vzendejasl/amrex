@@ -6,6 +6,7 @@
 #include <AMReX_Particles.H>
 #include <AMReX_ParticleUtil.H>
 #include <AMReX_NeighborList.H>
+#include <AMReX_OpenMP.H>
 
 namespace amrex {
 
@@ -240,7 +241,7 @@ public:
     /// Build a Neighbor List for each tile
     ///
     template <class CheckPair>
-    void buildNeighborList (CheckPair check_pair, bool sort=false);
+    void buildNeighborList (CheckPair&& check_pair, bool sort=false);
 
     void printNeighborList ();
 
