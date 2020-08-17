@@ -3,13 +3,6 @@
 
 #include <AMReX_EBCellFlag.H>
 
-namespace amrex { namespace {
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    Real get_dx_eb (Real kappa) noexcept {
-        return amrex::max(Real(0.3),(kappa*kappa-Real(0.25))/(Real(2.0)*kappa));
-    }
-}}
-
 namespace amrex {
 
 // This is the 3D version (i.e. for 10x10 (A^T A) matrix)

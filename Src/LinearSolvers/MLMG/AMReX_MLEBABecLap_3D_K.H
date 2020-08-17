@@ -1,6 +1,8 @@
 #ifndef AMREX_MLEBABECLAP_3D_K_H_
 #define AMREX_MLEBABECLAP_3D_K_H_
 
+#include <AMReX_EB_LeastSquares_3D_K.H>
+
 namespace amrex {
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
