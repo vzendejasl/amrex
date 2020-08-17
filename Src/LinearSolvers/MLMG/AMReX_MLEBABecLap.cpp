@@ -10,9 +10,9 @@
 #include <AMReX_MLLinOp_K.H>
 
 #if (AMREX_SPACEDIM == 2)
-#include <AMReX_MLEBABecLap_2D_K.H>
+#include <AMReX_EB_LeastSquares_2D_K.H>
 #else
-#include <AMReX_MLEBABecLap_3D_K.H>
+#include <AMReX_EB_LeastSquares_3D_K.H>
 #endif
 
 #ifdef AMREX_USE_HYPRE
