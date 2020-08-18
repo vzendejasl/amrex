@@ -7,6 +7,8 @@
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_EB2.H>
 
+#include <AMReX_EB_LeastSquares_2D_K.H>
+
 #include <cmath>
 
 using namespace amrex;
@@ -20,6 +22,49 @@ MyTest::MyTest ()
     initializeEB();
 
     initData();
+}
+
+void
+MyTest::compute_gradient ()
+{
+    int ilev = 0;
+
+    bool is_eb_dirichlet = true;
+    bool is_eb_inhomog  = false;
+
+    int ncomp = phi[0].nComp();
+
+    for (MFIter mfi(phi[ilev]); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.fabbox();
+        Array4<Real> const& phi_arr = phi[ilev].array(mfi);
+
+        Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
+        Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
+
+        Array4<Real const> const& ccent = (factory[ilev]->getCentroid()).array(mfi);
+        Array4<Real const> const& bcent = (factory[ilev]->getBndryCent()).array(mfi);
+        Array4<Real const> const& apx   = (factory[ilev]->getAreaFrac())[0]->const_array(mfi);
+        Array4<Real const> const& apy   = (factory[ilev]->getAreaFrac())[1]->const_array(mfi);
+
+        const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
+        Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
+
+        amrex::ParallelFor(bx, ncomp, 
+        [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
+        {
+            Real yloc_on_xface = fcx(i,j,k);
+            Real phi_x_on_x_face = 
+               grad_x_of_phi_on_centroids(i, j, k, n, 
+                                          phi_arr,
+                                          phi_arr, // phi_eb_arr, <-- SHOULD BE PHI_EB_ARR
+                                          flag,
+                                          ccent, bcent, 
+                                          apx, apy, 
+                                          yloc_on_xface,
+                                          is_eb_dirichlet, is_eb_inhomog);
+        });
+    }
 }
 
 void

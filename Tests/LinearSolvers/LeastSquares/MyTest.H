@@ -12,6 +12,7 @@ public:
     MyTest ();
 
     void solve ();
+    void compute_gradient ();
     void writePlotfile ();
     void initData ();
 
