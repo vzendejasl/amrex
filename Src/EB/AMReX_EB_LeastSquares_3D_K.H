@@ -340,7 +340,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
          for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
             if (!flag(ii,jj,kk).isCovered())
             {
-                int a_ind  = (jj-(j-1)) + 3*(kk-(k-1)) + 9*(i-ii);
+                int a_ind  = (jj-(j-1)) + 3*(kk-(k-1)) + 9*(ii-(i-1));
     
                 Real x_off = static_cast<Real>(ii-i) + 0.5;
                 Real y_off = static_cast<Real>(jj-j); 
@@ -381,7 +381,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
            for (int jj = j-1; jj <= j+1; jj++) // Tangential to face
                if (!flag(ii,jj,kk).isCovered())
                {
-                    int a_ind  = (jj-(j-1)) + 3*(kk-(k-1)) + 9*(i-ii);
+                    int a_ind  = (jj-(j-1)) + 3*(kk-(k-1)) + 9*(ii-(i-1));
 
                     rhs(irow) += Amatrix(a_ind,irow)*  phi(ii,jj,kk,n);
 
@@ -423,7 +423,7 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
         for (int ii = i-1; ii <= i+1; ii++)  // Tangential to face
             if (!flag(ii,jj,k).isCovered())
             {
-                int a_ind  = (ii-(i-1)) + 3*(kk-(k-1)) + 9*(j-jj);
+                int a_ind  = (ii-(i-1)) + 3*(kk-(k-1)) + 9*(jj-(j-1));
 
                 Real x_off = static_cast<Real>(ii-i); 
                 Real y_off = static_cast<Real>(jj-j) + 0.5;
@@ -464,7 +464,7 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
              for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
                 if (!flag(ii,jj,kk).isCovered())
                 {
-                    int a_ind  = (ii-(i-1)) + 3*(kk-(k-1)) + 9*(j-jj);
+                    int a_ind  = (ii-(i-1)) + 3*(kk-(k-1)) + 9*(jj-(j-1));
 
                     rhs(irow) += Amatrix(a_ind,irow)*  phi(ii,jj,kk,n);
 
@@ -508,7 +508,7 @@ Real grad_z_of_phi_on_centroids(int i,int j,int k,int n,
          {
             if (!flag(ii,jj,kk).isCovered())
             {
-                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(k-kk);
+                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-1));
 
                 Real x_off = static_cast<Real>(ii-i); 
                 Real y_off = static_cast<Real>(jj-j); 
@@ -551,7 +551,7 @@ Real grad_z_of_phi_on_centroids(int i,int j,int k,int n,
              for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
                 if (!flag(ii,jj,kk).isCovered())
                 {
-                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(k-kk);
+                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-1));
 
                     rhs(irow) += Amatrix(a_ind,irow)*  phi(ii,jj,kk,n);
 
