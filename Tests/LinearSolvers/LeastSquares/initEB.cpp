@@ -57,6 +57,19 @@ MyTest::initializeEB ()
         auto gshop = EB2::makeShop(flower);
         EB2::Build(gshop, geom.back(), max_level, max_level+max_coarsening_level);
     }
+    else if (geom_type == "box") {
+        Vector<Real> lo(3);
+        Vector<Real> hi(3);
+        bool fluid_inside = true;
+        
+        pp.getarr("box_lo", lo, 0, 3);
+        pp.getarr("box_hi", hi, 0, 3);
+        pp.get("box_has_fluid_inside", fluid_inside);
+
+        EB2::BoxIF box({AMREX_D_DECL(lo[0],lo[1],lo[2])}, {AMREX_D_DECL(hi[0],hi[1],hi[2])}, fluid_inside);
+        auto gshop = EB2::makeShop(box);
+        EB2::Build(gshop, geom.back(), max_level, max_level+max_coarsening_level);
+    }
     else
     {
         EB2::Build(geom.back(), max_level, max_level+max_coarsening_level);
