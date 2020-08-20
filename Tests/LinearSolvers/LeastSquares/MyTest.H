@@ -26,8 +26,10 @@ private:
     int ref_ratio = 2;
     int n_cell = 128;
     int max_grid_size = 64;
-    int is_periodic = 0;
+    amrex::Vector<int> is_periodic = amrex::Vector<int>(3,0);
     int eb_is_dirichlet = 0;
+    amrex::Vector<amrex::Real> prob_lo = amrex::Vector<amrex::Real>(3,0.0);
+    amrex::Vector<amrex::Real> prob_hi = amrex::Vector<amrex::Real>(3,1.0);
     
     std::string plot_file_name{"plot"};
 
@@ -45,12 +47,22 @@ private:
     int max_coarsening_level = 30;
     bool use_hypre = false;
     bool use_petsc = false;
+    bool use_poiseuille_1d = false;
+    amrex::Real poiseuille_1d_left_wall = 0.225;
+    amrex::Real poiseuille_1d_right_wall = 1.225;
+
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;
     amrex::Vector<amrex::DistributionMapping> dmap;
     amrex::Vector<std::unique_ptr<amrex::EBFArrayBoxFactory> > factory;
 
     amrex::Vector<amrex::MultiFab> phi;
+    amrex::Vector<amrex::MultiFab> phieb;
+    amrex::Vector<amrex::MultiFab> grad_x;
+    amrex::Vector<amrex::MultiFab> grad_y;
+    amrex::Vector<amrex::MultiFab> grad_eb;
+    amrex::Vector<amrex::MultiFab> ccent_x;
+    amrex::Vector<amrex::MultiFab> ccent_y;
     amrex::Vector<amrex::MultiFab> rhs;
     amrex::Vector<amrex::MultiFab> acoef;
     amrex::Vector<amrex::Array<amrex::MultiFab,AMREX_SPACEDIM> > bcoef;

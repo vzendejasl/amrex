@@ -38,6 +38,12 @@ MyTest::compute_gradient ()
     {
         const Box& bx = mfi.fabbox();
         Array4<Real> const& phi_arr = phi[ilev].array(mfi);
+        Array4<Real> const& phi_eb_arr = phieb[ilev].array(mfi);
+        Array4<Real> const& grad_x_arr = grad_x[ilev].array(mfi);
+        Array4<Real> const& grad_y_arr = grad_y[ilev].array(mfi);
+        Array4<Real> const& grad_eb_arr = grad_eb[ilev].array(mfi);
+        Array4<Real> const& ccent_x_arr = ccent_x[ilev].array(mfi);
+        Array4<Real> const& ccent_y_arr = ccent_y[ilev].array(mfi);
 
         Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
         Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
@@ -46,6 +52,7 @@ MyTest::compute_gradient ()
         Array4<Real const> const& bcent = (factory[ilev]->getBndryCent()).array(mfi);
         Array4<Real const> const& apx   = (factory[ilev]->getAreaFrac())[0]->const_array(mfi);
         Array4<Real const> const& apy   = (factory[ilev]->getAreaFrac())[1]->const_array(mfi);
+        Array4<Real const> const& norm  = (factory[ilev]->getBndryNormal()).array(mfi);
 
         const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
         Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
@@ -54,15 +61,38 @@ MyTest::compute_gradient ()
         [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
         {
             Real yloc_on_xface = fcx(i,j,k);
-            Real phi_x_on_x_face = 
+            Real xloc_on_yface = fcy(i,j,k);
+            Real nx = norm(i,j,k,0);
+            Real ny = norm(i,j,k,1);
+            ccent_x_arr(i,j,k) = ccent(i,j,k,0);
+            ccent_y_arr(i,j,k) = ccent(i,j,k,1);
+
+            grad_x_arr(i,j,k) = 
                grad_x_of_phi_on_centroids(i, j, k, n, 
                                           phi_arr,
-                                          phi_arr, // phi_eb_arr, <-- SHOULD BE PHI_EB_ARR
+                                          phi_eb_arr,
                                           flag,
                                           ccent, bcent, 
                                           apx, apy, 
                                           yloc_on_xface,
                                           is_eb_dirichlet, is_eb_inhomog);
+            grad_y_arr(i,j,k) = 
+               grad_y_of_phi_on_centroids(i, j, k, n, 
+                                          phi_arr,
+                                          phi_eb_arr,
+                                          flag,
+                                          ccent, bcent, 
+                                          apx, apy, 
+                                          xloc_on_yface,
+                                          is_eb_dirichlet, is_eb_inhomog);
+            grad_eb_arr(i,j,k) = 
+               grad_eb_of_phi_on_centroids(i, j, k, n, 
+                                          phi_arr,
+                                          phi_eb_arr,
+                                          flag,
+                                          ccent, bcent, 
+                                          nx, ny, 
+                                          is_eb_inhomog);
         });
     }
 }
@@ -120,20 +150,6 @@ MyTest::solve ()
     MLMG mlmg(mleb);
 
     mlmg.apply(amrex::GetVecOfPtrs(rhs), amrex::GetVecOfPtrs(phi));
-
-#if 0
-    mlmg.setMaxIter(max_iter);
-    mlmg.setMaxFmgIter(max_fmg_iter);
-    mlmg.setBottomMaxIter(max_bottom_iter);
-    mlmg.setBottomTolerance(bottom_reltol);
-    mlmg.setVerbose(verbose);
-    mlmg.setBottomVerbose(bottom_verbose);
-    if (use_hypre) mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
-    if (use_petsc) mlmg.setBottomSolver(MLMG::BottomSolver::petsc); 
-    const Real tol_rel = reltol;
-    const Real tol_abs = 0.0;
-    mlmg.solve(amrex::GetVecOfPtrs(phi), amrex::GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-#endif
 }
 
 void
@@ -142,14 +158,20 @@ MyTest::writePlotfile ()
     Vector<MultiFab> plotmf(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
         const MultiFab& vfrc = factory[ilev]->getVolFrac();
-        plotmf[ilev].define(grids[ilev],dmap[ilev],3,0);
+        plotmf[ilev].define(grids[ilev],dmap[ilev],9,0);
         MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 1, 0);
         MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 1, 1, 0);
         MultiFab::Copy(plotmf[ilev], vfrc, 0, 2, 1, 0);    
+        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 3, 1, 0);
+        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 4, 1, 0);
+        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 5, 1, 0);
+        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 6, 1, 0);
+        MultiFab::Copy(plotmf[ilev], ccent_x[ilev], 0, 7, 1, 0);
+        MultiFab::Copy(plotmf[ilev], ccent_y[ilev], 0, 8, 1, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
-                            {"phi","rhs","vfrac"},
+                            {"phi","rhs","vfrac", "phieb", "grad_x", "grad_y", "grad_eb", "ccent_x", "ccent_y"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
                             
@@ -162,13 +184,18 @@ MyTest::readParameters ()
     pp.query("max_level", max_level);
     pp.query("n_cell", n_cell);
     pp.query("max_grid_size", max_grid_size);
-    pp.query("is_periodic", is_periodic);
+
+    pp.queryarr("is_periodic", is_periodic);
+
     pp.query("eb_is_dirichlet", eb_is_dirichlet);
 
     pp.query("plot_file", plot_file_name);
 
+    pp.queryarr("prob_lo", prob_lo);
+    pp.queryarr("prob_hi", prob_hi);
+
     scalars.resize(2);
-    if (is_periodic) {
+    if (is_periodic[0]) {
         scalars[0] = 0.0;
         scalars[1] = 1.0;
     } else {
@@ -192,6 +219,9 @@ MyTest::readParameters ()
 #ifdef AMREX_USE_PETSC
     pp.query("use_petsc",use_petsc); 
 #endif
+    pp.query("use_poiseuille_1d", use_poiseuille_1d);
+    pp.query("poiseuille_1d_left_wall",poiseuille_1d_left_wall);
+    pp.query("poiseuille_1d_right_wall",poiseuille_1d_right_wall);
 }
 
 void
@@ -201,8 +231,8 @@ MyTest::initGrids ()
     geom.resize(nlevels);
     grids.resize(nlevels);
 
-    RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
-    std::array<int,AMREX_SPACEDIM> isperiodic{AMREX_D_DECL(is_periodic,is_periodic,is_periodic)};
+    RealBox rb({AMREX_D_DECL(prob_lo[0],prob_lo[1],prob_lo[2])}, {AMREX_D_DECL(prob_hi[0],prob_hi[1],prob_hi[2])});
+    std::array<int,AMREX_SPACEDIM> isperiodic{AMREX_D_DECL(is_periodic[0],is_periodic[1],is_periodic[2])};
     Geometry::Setup(&rb, 0, isperiodic.data());
     Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
     Box domain = domain0;
@@ -229,6 +259,12 @@ MyTest::initData ()
     dmap.resize(nlevels);
     factory.resize(nlevels);
     phi.resize(nlevels);
+    phieb.resize(nlevels);
+    grad_x.resize(nlevels);
+    grad_y.resize(nlevels);
+    grad_eb.resize(nlevels);
+    ccent_x.resize(nlevels);
+    ccent_y.resize(nlevels);
     rhs.resize(nlevels);
     acoef.resize(nlevels);
     bcoef.resize(nlevels);
@@ -243,6 +279,12 @@ MyTest::initData ()
                                                    {2,2,2}, EBSupport::full));
 
         phi[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        phieb[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        grad_x[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        grad_y[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        grad_eb[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        ccent_x[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        ccent_y[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
         rhs[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
         acoef[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -255,6 +297,12 @@ MyTest::initData ()
         }
 
         phi[ilev].setVal(0.0);
+        phieb[ilev].setVal(0.0);
+        grad_x[ilev].setVal(1e40);
+        grad_y[ilev].setVal(1e40);
+        grad_eb[ilev].setVal(1e40);
+        ccent_x[ilev].setVal(0.0);
+        ccent_y[ilev].setVal(0.0);
         rhs[ilev].setVal(0.0);
         acoef[ilev].setVal(1.0);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -263,49 +311,34 @@ MyTest::initData ()
 
         const auto dx = geom[ilev].CellSizeArray();
 
-//      if (is_periodic)
-        {
-            const Real pi = 4.0*std::atan(1.0);
+        const Real pi = 4.0*std::atan(1.0);
 
-            for (MFIter mfi(rhs[ilev]); mfi.isValid(); ++mfi)
-            {
-                const Box& bx = mfi.fabbox();
-                // Array4<Real> const& fab = rhs[ilev].array(mfi);
-                Array4<Real> const& fab = phi[ilev].array(mfi);
-                amrex::ParallelFor(bx,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    Real rx = (i+0.5)*dx[0];
-                    Real ry = (j+0.5)*dx[1];
-                    // fab(i,j,k) = std::sin(rx*2.*pi + 43.5)*std::sin(ry*2.*pi + 89.);
-                    fab(i,j,k) = rx*(1.-rx)*ry*(1.-ry);
-                });
+        for (MFIter mfi(rhs[ilev]); mfi.isValid(); ++mfi)
+        {
+            const Box& bx = mfi.fabbox();
+            Array4<Real> const& fab = phi[ilev].array(mfi);
+            if (use_poiseuille_1d) {
+               Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
+               amrex::ParallelFor(bx,
+               [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+               {
+                   auto H = poiseuille_1d_right_wall - poiseuille_1d_left_wall;
+                   auto lw = poiseuille_1d_left_wall;
+                   Real rx = (i+0.5 + fcy(i,j,k))*dx[0];
+                   fab(i,j,k) = (rx - lw) * (1. - (rx - lw));
+               });
+            }
+            else {
+               amrex::ParallelFor(bx,
+               [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+               {
+                   Real rx = (i+0.5)*dx[0];
+                   Real ry = (j+0.5)*dx[1];
+                   // fab(i,j,k) = std::sin(rx*2.*pi + 43.5)*std::sin(ry*2.*pi + 89.);
+                   fab(i,j,k) = rx*(1.-rx)*ry*(1.-ry);
+               });
             }
         }
-#if 0
-        else if (eb_is_dirichlet)
-        {
-            phi[ilev].setVal(10.0);
-            phi[ilev].setVal(0.0, 0, 1, 0); // set interior
-        }
-        else
-        {
-            // Initialize Dirichlet boundary
-            for (MFIter mfi(phi[ilev]); mfi.isValid(); ++mfi)
-            {
-                const Box& bx = mfi.fabbox();
-                Array4<Real> const& fab = phi[ilev].array(mfi);
-                amrex::ParallelFor(bx,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    Real rx = (i+0.5)*dx[0];
-                    Real ry = (j+0.5)*dx[1];
-                    fab(i,j,k) = std::sqrt(0.5)*(rx + ry);
-                });
-            }
-            phi[ilev].setVal(0.0, 0, 1, 0); // set interior to zero
-        }
-#endif
     }
 }
 
