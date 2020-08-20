@@ -27,10 +27,10 @@ void decomp_chol_np6(Array2D<Real,0,5,0,5>& aa)
             {
                 sum1 = sum1 - aa(ii,kk)*aa(jj,kk);
             }
- 
+
             if (ii == jj)
             {
-                 if (sum1 <= 0.) 
+                 if (sum1 <= 0.)
                  {
                      p[ii] = 0.0;
                      ising = 1;
@@ -38,7 +38,7 @@ void decomp_chol_np6(Array2D<Real,0,5,0,5>& aa)
                      p[ii] = std::sqrt(sum1);
                  }
             } else {
-                if (ising == 0) 
+                if (ising == 0)
                    aa(jj,ii) = sum1 / p[ii];
                 else
                    aa(jj,ii) = 0.0;
@@ -53,7 +53,7 @@ void decomp_chol_np6(Array2D<Real,0,5,0,5>& aa)
            aa(ii,jj) = 0.0;       // Zero upper triangle
            aa(ii,jj) = aa(jj,ii);  // Zero upper triangle
         }
-          
+
         aa(ii,ii) = p[ii];
     }
 }
@@ -92,7 +92,7 @@ void  cholsol_np6(Array2D<Real,0,11,0,5>& Amatrix, Array1D<Real,0,5>& b)
          AtA(3,5) += Amatrix(irow,3)*Amatrix(irow,5); // (x^2)^T (y^2)
          AtA(4,4) += Amatrix(irow,4)*Amatrix(irow,4); // (x*y)^T (x*y)
          AtA(4,5) += Amatrix(irow,4)*Amatrix(irow,5); // (x*y)^T (y^2)
-         AtA(5,5) += Amatrix(irow,5)*Amatrix(irow,5); // (y^2)^T (y^2) 
+         AtA(5,5) += Amatrix(irow,5)*Amatrix(irow,5); // (y^2)^T (y^2)
     }
 
     for (int irow = 0; irow < neq-1; irow++)
@@ -175,7 +175,7 @@ void  cholsol_for_eb(Array2D<Real,0,17,0,5>& Amatrix, Array1D<Real,0,5>& b)
          AtA(3,5) += Amatrix(irow,3)*Amatrix(irow,5); // (x^2)^T (y^2)
          AtA(4,4) += Amatrix(irow,4)*Amatrix(irow,4); // (x*y)^T (x*y)
          AtA(4,5) += Amatrix(irow,4)*Amatrix(irow,5); // (x*y)^T (y^2)
-         AtA(5,5) += Amatrix(irow,5)*Amatrix(irow,5); // (y^2)^T (y^2) 
+         AtA(5,5) += Amatrix(irow,5)*Amatrix(irow,5); // (y^2)^T (y^2)
     }
 
     for (int irow = 0; irow < neq-1; irow++)
@@ -227,14 +227,14 @@ void  cholsol_for_eb(Array2D<Real,0,17,0,5>& Amatrix, Array1D<Real,0,5>& b)
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
-                                Array4<Real const> const& phi, 
-                                Array4<Real const> const& phieb, 
+                                Array4<Real const> const& phi,
+                                Array4<Real const> const& phieb,
                                 Array4<EBCellFlag const> const& flag,
                                 Array4<Real const> const& ccent,
-                                Array4<Real const> const& bcent, 
-                                Array4<Real const> const& apx, 
-                                Array4<Real const> const& apy, 
-                                Real& yloc_on_xface, 
+                                Array4<Real const> const& bcent,
+                                Array4<Real const> const& apx,
+                                Array4<Real const> const& apy,
+                                Real& yloc_on_xface,
                                 bool is_eb_dirichlet, bool is_eb_inhomog)
 {
     Array2D<Real,0,11,0,5> Amatrix;
@@ -254,10 +254,12 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
             if (!flag(ii,jj,k).isCovered())
             {
                 int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
-    
+
+                // This shifts the x-offset by a normalized half-dx so that
+                // x=0 is the x-coordinate of the FACE centroid.
                 Real x_off = static_cast<Real>(ii-i) + 0.5;
-                Real y_off = static_cast<Real>(jj-j); 
-    
+                Real y_off = static_cast<Real>(jj-j);
+
                 Amatrix(a_ind,0) = 1.0;
                 Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0);
                 Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) - yloc_on_xface;
@@ -271,7 +273,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
                     if (is_eb_dirichlet) {
                         Amatrix(a_ind_eb,0) = 1.0;
                         Amatrix(a_ind_eb,1) = x_off + bcent(ii,jj,k,0);
-                        Amatrix(a_ind_eb,2) = y_off + bcent(ii,jj,k,1) - yloc_on_xface; 
+                        Amatrix(a_ind_eb,2) = y_off + bcent(ii,jj,k,1) - yloc_on_xface;
                         Amatrix(a_ind_eb,3) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,1);
                         Amatrix(a_ind_eb,4) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,2);
                         Amatrix(a_ind_eb,5) = Amatrix(a_ind_eb,2) * Amatrix(a_ind_eb,2);
@@ -306,7 +308,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
                     int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
                     rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
 
-                    if (flag(ii,jj,k).isSingleValued() && 
+                    if (flag(ii,jj,k).isSingleValued() &&
                         is_eb_dirichlet && is_eb_inhomog)
                             rhs(irow) += Amatrix(a_ind+6,irow)*phieb(ii,jj,k,n);
                 }
@@ -315,18 +317,18 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
 
     cholsol_np6(Amatrix, rhs);
 
-    return rhs(1);     
+    return rhs(1);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
-                                Array4<Real const> const& phi, 
-                                Array4<Real const> const& phieb, 
+                                Array4<Real const> const& phi,
+                                Array4<Real const> const& phieb,
                                 Array4<EBCellFlag const> const& flag,
                                 Array4<Real const> const& ccent,
-                                Array4<Real const> const& bcent, 
-                                Array4<Real const> const& apx, 
-                                Array4<Real const> const& apy, 
+                                Array4<Real const> const& bcent,
+                                Array4<Real const> const& apx,
+                                Array4<Real const> const& apy,
                                 Real& xloc_on_yface,
                                 bool is_eb_dirichlet, bool is_eb_inhomog)
 {
@@ -348,9 +350,9 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
             {
                 int a_ind  = (ii-(i-1)) + 3*(jj-(j-1));
 
-                Real x_off = static_cast<Real>(ii-i); 
+                Real x_off = static_cast<Real>(ii-i);
                 Real y_off = static_cast<Real>(jj-j) + 0.5;
-    
+
                 Amatrix(a_ind,0) = 1.0;
                 Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) - xloc_on_yface;
                 Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1);
@@ -398,7 +400,7 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
                     int a_ind  = (ii-(i-1)) + 3*(jj-(j-1));
                     rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
 
-                    if (flag(ii,jj,k).isSingleValued() && 
+                    if (flag(ii,jj,k).isSingleValued() &&
                         is_eb_dirichlet && is_eb_inhomog)
                             rhs(irow) += Amatrix(a_ind+6,irow)*phieb(ii,jj,k,n);
                 }
@@ -406,13 +408,13 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
 
     cholsol_np6(Amatrix, rhs);
 
-    return rhs(2);     
+    return rhs(2);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
-                                Array4<Real const> const& phi, 
-                                Array4<Real const> const& phieb, 
+                                Array4<Real const> const& phi,
+                                Array4<Real const> const& phieb,
                                 Array4<EBCellFlag const> const& flag,
                                 Array4<Real const> const& ccent,
                                 Array4<Real const> const& bcent,
@@ -435,17 +437,18 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
             if (!flag(ii,jj,k).isCovered())
             {
                 int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
-    
+
                 Real x_off = static_cast<Real>(ii-i);
                 Real y_off = static_cast<Real>(jj-j);
-    
-                if (flag(i,j,k).isConnected((jj-j),(ii-i),0))
+
+                if (flag(i,j,k).isConnected((ii-i),(jj-j),0))
                 {
                    Amatrix(a_ind,0) = 1.0;
                    Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) - bcent(i,j,k,0);
                    Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) - bcent(i,j,k,1);
                 }
-#if 1
+
+#if 0
                 if (i == ii and j == jj)
                 {
                    Amatrix(a_ind,0) *= 2.0;
@@ -454,13 +457,13 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
                 }
 #endif
 
-                if (flag(i,j,k).isConnected((jj-j),(ii-i),0) and !flag(ii,jj,k).isRegular())
+                if (flag(i,j,k).isConnected((ii-i),(jj-j),0) and !flag(ii,jj,k).isRegular())
                 {
                     Amatrix(a_ind+9,0) = 1.0;
                     Amatrix(a_ind+9,1) = x_off + bcent(ii,jj,k,0) - bcent(i,j,k,0);
                     Amatrix(a_ind+9,2) = y_off + bcent(ii,jj,k,1) - bcent(i,j,k,1);
 
-#if 1
+#if 0
                     if (i == ii and j == jj)
                         Amatrix(a_ind+9,0) *= 2.0;
 #endif
