@@ -57,42 +57,49 @@ MyTest::compute_gradient ()
         const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
         Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
 
-        amrex::ParallelFor(bx, ncomp, 
+        const auto dx = geom[ilev].CellSizeArray();
+
+        amrex::ParallelFor(bx, ncomp,
         [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
         {
-            Real yloc_on_xface = fcx(i,j,k);
-            Real xloc_on_yface = fcy(i,j,k);
+            Real yloc_on_xface = fcx(i,j,k,0);
+            Real xloc_on_yface = fcy(i,j,k,0);
             Real nx = norm(i,j,k,0);
             Real ny = norm(i,j,k,1);
             ccent_x_arr(i,j,k) = ccent(i,j,k,0);
             ccent_y_arr(i,j,k) = ccent(i,j,k,1);
 
-            grad_x_arr(i,j,k) = 
-               grad_x_of_phi_on_centroids(i, j, k, n, 
-                                          phi_arr,
-                                          phi_eb_arr,
-                                          flag,
-                                          ccent, bcent, 
-                                          apx, apy, 
-                                          yloc_on_xface,
-                                          is_eb_dirichlet, is_eb_inhomog);
-            grad_y_arr(i,j,k) = 
-               grad_y_of_phi_on_centroids(i, j, k, n, 
-                                          phi_arr,
-                                          phi_eb_arr,
-                                          flag,
-                                          ccent, bcent, 
-                                          apx, apy, 
-                                          xloc_on_yface,
-                                          is_eb_dirichlet, is_eb_inhomog);
-            grad_eb_arr(i,j,k) = 
-               grad_eb_of_phi_on_centroids(i, j, k, n, 
-                                          phi_arr,
-                                          phi_eb_arr,
-                                          flag,
-                                          ccent, bcent, 
-                                          nx, ny, 
-                                          is_eb_inhomog);
+#if 1
+            // There is no need to set these to zero other than it makes using
+            // amrvis a lot more friendly.
+            if( flag(i,j,k).isCovered()){
+              grad_x_arr(i,j,k)  = 0.0;
+              grad_y_arr(i,j,k)  = 0.0;
+
+            }
+#endif
+
+            if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
+
+              grad_x_arr(i,j,k) = (apx(i,j,k) == 0.0) ? 0.0 :
+                grad_x_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                           flag, ccent, bcent, apx, apy,
+                                           yloc_on_xface, is_eb_dirichlet, is_eb_inhomog);
+
+
+              grad_y_arr(i,j,k) = (apy(i,j,k) == 0.0) ? 0.0:
+                grad_y_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                           flag, ccent, bcent, apx, apy,
+                                           xloc_on_yface, is_eb_dirichlet, is_eb_inhomog);
+
+
+            }
+
+
+            if (flag(i,j,k).isSingleValued())
+              grad_eb_arr(i,j,k) = grad_eb_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                        flag, ccent, bcent, nx, ny, is_eb_inhomog);
+
         });
     }
 }
@@ -111,7 +118,7 @@ MyTest::solve ()
 
     std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_lobc;
     std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_hibc;
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) 
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
     {
         if (geom[0].isPeriodic(idim)) {
             mlmg_lobc[idim] = LinOpBCType::Periodic;
@@ -161,7 +168,7 @@ MyTest::writePlotfile ()
         plotmf[ilev].define(grids[ilev],dmap[ilev],9,0);
         MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 1, 0);
         MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 1, 1, 0);
-        MultiFab::Copy(plotmf[ilev], vfrc, 0, 2, 1, 0);    
+        MultiFab::Copy(plotmf[ilev], vfrc, 0, 2, 1, 0);
         MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 3, 1, 0);
         MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 4, 1, 0);
         MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 5, 1, 0);
@@ -174,7 +181,7 @@ MyTest::writePlotfile ()
                             {"phi","rhs","vfrac", "phieb", "grad_x", "grad_y", "grad_eb", "ccent_x", "ccent_y"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
-                            
+
 }
 
 void
@@ -202,7 +209,7 @@ MyTest::readParameters ()
     else if (is_periodic[1]) {
         scalars[0] = 1.0;
         scalars[1] = 0.0;
-    } 
+    }
     else {
         scalars[0] = 1.0;
         scalars[1] = 1.0;
@@ -222,7 +229,7 @@ MyTest::readParameters ()
     pp.query("use_hypre", use_hypre);
 #endif
 #ifdef AMREX_USE_PETSC
-    pp.query("use_petsc",use_petsc); 
+    pp.query("use_petsc",use_petsc);
 #endif
     pp.query("use_poiseuille_1d", use_poiseuille_1d);
     pp.query("poiseuille_1d_left_wall",poiseuille_1d_left_wall);
@@ -254,7 +261,7 @@ MyTest::initGrids ()
         grids[ilev].define(domain);
         grids[ilev].maxSize(max_grid_size);
         domain.grow(-n_cell/4);   // fine level cover the middle of the coarse domain
-        domain.refine(ref_ratio); 
+        domain.refine(ref_ratio);
     }
 }
 
@@ -323,6 +330,10 @@ MyTest::initData ()
         {
             const Box& bx = mfi.fabbox();
             Array4<Real> const& fab = phi[ilev].array(mfi);
+
+            const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
+            Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
+
             if (use_poiseuille_1d) {
                Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
                Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
@@ -337,7 +348,9 @@ MyTest::initData ()
                    Real ry = (j+0.5 + fcx(i,j,k))*dx[1];
 
                    auto RX = rx*std::cos(rot) + ry*std::sin(rot) - lw;
-                   fab(i,j,k) = RX * (H - RX);
+
+                   fab(i,j,k) = (!flag(i,j,k).isCovered()) ? RX * (H - RX) : 0.0;
+
                });
             }
             else {
@@ -351,6 +364,8 @@ MyTest::initData ()
                });
             }
         }
+
+        phi[ilev].FillBoundary(geom[ilev].periodicity());
+
     }
 }
-
