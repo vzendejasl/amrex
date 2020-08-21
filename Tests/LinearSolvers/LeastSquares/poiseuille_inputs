@@ -14,7 +14,7 @@ max_grid_size = 64
 max_coarsening_level = 0
 prob_lo = 0.   0.   0.
 prob_hi = 1.4  14.  0.
-is_periodic = 0  1  0
+is_periodic = 0  0  0
 
 use_poiseuille_1d = 1
 poiseuille_1d_left_wall = 0.225

@@ -198,7 +198,12 @@ MyTest::readParameters ()
     if (is_periodic[0]) {
         scalars[0] = 0.0;
         scalars[1] = 1.0;
-    } else {
+    }
+    else if (is_periodic[1]) {
+        scalars[0] = 1.0;
+        scalars[1] = 0.0;
+    } 
+    else {
         scalars[0] = 1.0;
         scalars[1] = 1.0;
     }
