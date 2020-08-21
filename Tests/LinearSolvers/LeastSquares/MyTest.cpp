@@ -319,6 +319,7 @@ MyTest::initData ()
             const Box& bx = mfi.fabbox();
             Array4<Real> const& fab = phi[ilev].array(mfi);
             if (use_poiseuille_1d) {
+               Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
                Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
                amrex::ParallelFor(bx,
                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
@@ -328,7 +329,9 @@ MyTest::initData ()
                    auto rot = (poiseuille_1d_rotation/180.)*M_PI;
 
                    Real rx = (i+0.5 + fcy(i,j,k))*dx[0];
-                   auto RX = (rx-lw) / std::cos(rot);
+                   Real ry = (j+0.5 + fcx(i,j,k))*dx[1];
+
+                   auto RX = (rx-lw)*std::cos(rot) + ry*std::sin(rot);
                    fab(i,j,k) = RX * (H - RX);
                });
             }
