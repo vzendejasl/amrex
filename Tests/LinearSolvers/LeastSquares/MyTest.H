@@ -50,6 +50,7 @@ private:
     bool use_poiseuille_1d = false;
     amrex::Real poiseuille_1d_left_wall = 0.225;
     amrex::Real poiseuille_1d_right_wall = 1.225;
+    amrex::Real poiseuille_1d_rotation = 0.;
 
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;

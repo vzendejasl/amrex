@@ -61,13 +61,19 @@ MyTest::initializeEB ()
         Vector<Real> lo(3);
         Vector<Real> hi(3);
         bool fluid_inside = true;
+        Real rotation = 0.0;
+        int rotation_axe = 0;
         
         pp.getarr("box_lo", lo, 0, 3);
         pp.getarr("box_hi", hi, 0, 3);
         pp.get("box_has_fluid_inside", fluid_inside);
+        pp.get("box_rotation", rotation);
+        pp.get("box_rotation_axe", rotation_axe);
+        rotation = (rotation/180.) * M_PI;
 
         EB2::BoxIF box({AMREX_D_DECL(lo[0],lo[1],lo[2])}, {AMREX_D_DECL(hi[0],hi[1],hi[2])}, fluid_inside);
-        auto gshop = EB2::makeShop(box);
+        auto rotated_box = EB2::rotate(box, rotation, rotation_axe);
+        auto gshop = EB2::makeShop(rotated_box);
         EB2::Build(gshop, geom.back(), max_level, max_level+max_coarsening_level);
     }
     else

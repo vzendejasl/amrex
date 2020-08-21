@@ -1,9 +1,9 @@
 eb2.geom_type = box
 
 eb2.geom_type = box
-eb2.box_lo = 0.225 -100.0  0.0
+eb2.box_lo = 0.425 -100.0  0.0
 eb2.box_hi = 1.225  100.0  0.0
-eb2.box_rotation = 0.
+eb2.box_rotation = 1.
 eb2.box_rotation_axe = 1
 eb2.box_has_fluid_inside = 1
 
@@ -14,9 +14,9 @@ max_grid_size = 64
 max_coarsening_level = 0
 prob_lo = 0.   0.   0.
 prob_hi = 1.4  14.  0.
-is_periodic = 0  1  0
+is_periodic = 0  0  0
 
 use_poiseuille_1d = 1
-poiseuille_1d_left_wall = 0.225
+poiseuille_1d_left_wall = 0.425
 poiseuille_1d_right_wall = 1.225
-poiseuille_1d_rotation = 0.
+poiseuille_1d_rotation = 1.

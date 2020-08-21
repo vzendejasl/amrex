@@ -222,6 +222,7 @@ MyTest::readParameters ()
     pp.query("use_poiseuille_1d", use_poiseuille_1d);
     pp.query("poiseuille_1d_left_wall",poiseuille_1d_left_wall);
     pp.query("poiseuille_1d_right_wall",poiseuille_1d_right_wall);
+    pp.query("poiseuille_1d_rotation",poiseuille_1d_rotation);
 }
 
 void
@@ -324,8 +325,11 @@ MyTest::initData ()
                {
                    auto H = poiseuille_1d_right_wall - poiseuille_1d_left_wall;
                    auto lw = poiseuille_1d_left_wall;
+                   auto rot = (poiseuille_1d_rotation/180.)*M_PI;
+
                    Real rx = (i+0.5 + fcy(i,j,k))*dx[0];
-                   fab(i,j,k) = (rx - lw) * (1. - (rx - lw));
+                   auto RX = (rx-lw) / std::cos(rot);
+                   fab(i,j,k) = RX * (H - RX);
                });
             }
             else {
