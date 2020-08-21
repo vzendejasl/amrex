@@ -331,7 +331,7 @@ MyTest::initData ()
                    Real rx = (i+0.5 + fcy(i,j,k))*dx[0];
                    Real ry = (j+0.5 + fcx(i,j,k))*dx[1];
 
-                   auto RX = (rx-lw)*std::cos(rot) + ry*std::sin(rot);
+                   auto RX = rx*std::cos(rot) + ry*std::sin(rot) - lw;
                    fab(i,j,k) = RX * (H - RX);
                });
             }
