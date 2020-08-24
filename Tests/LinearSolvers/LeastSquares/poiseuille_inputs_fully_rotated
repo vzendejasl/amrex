@@ -21,4 +21,4 @@ poiseuille_1d_left_wall = 0.225
 poiseuille_1d_right_wall = 1.225
 poiseuille_1d_rotation = 90.
 
-plot_file = "plot-y"
+plot_file = "plot-fully-rotated"

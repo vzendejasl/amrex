@@ -73,21 +73,21 @@ MyTest::compute_gradient ()
             // There is no need to set these to zero other than it makes using
             // amrvis a lot more friendly.
             if( flag(i,j,k).isCovered()){
-              grad_x_arr(i,j,k)  = 0.0;
-              grad_y_arr(i,j,k)  = 0.0;
+              grad_x_arr(i,j,k,n)  = 0.0;
+              grad_y_arr(i,j,k,n)  = 0.0;
 
             }
 #endif
 
             if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
 
-              grad_x_arr(i,j,k) = (apx(i,j,k) == 0.0) ? 0.0 :
+              grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
                 grad_x_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
                                            flag, ccent, bcent, apx, apy,
                                            yloc_on_xface, is_eb_dirichlet, is_eb_inhomog);
 
 
-              grad_y_arr(i,j,k) = (apy(i,j,k) == 0.0) ? 0.0:
+              grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
                 grad_y_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
                                            flag, ccent, bcent, apx, apy,
                                            xloc_on_yface, is_eb_dirichlet, is_eb_inhomog);
@@ -97,7 +97,7 @@ MyTest::compute_gradient ()
 
 
             if (flag(i,j,k).isSingleValued())
-              grad_eb_arr(i,j,k) = grad_eb_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+              grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
                         flag, ccent, bcent, nx, ny, is_eb_inhomog);
 
         });
@@ -165,20 +165,23 @@ MyTest::writePlotfile ()
     Vector<MultiFab> plotmf(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
         const MultiFab& vfrc = factory[ilev]->getVolFrac();
-        plotmf[ilev].define(grids[ilev],dmap[ilev],9,0);
-        MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 1, 0);
-        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 1, 1, 0);
-        MultiFab::Copy(plotmf[ilev], vfrc, 0, 2, 1, 0);
-        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 3, 1, 0);
-        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 4, 1, 0);
-        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 5, 1, 0);
-        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 6, 1, 0);
-        MultiFab::Copy(plotmf[ilev], ccent_x[ilev], 0, 7, 1, 0);
-        MultiFab::Copy(plotmf[ilev], ccent_y[ilev], 0, 8, 1, 0);
+        plotmf[ilev].define(grids[ilev],dmap[ilev],14,0);
+        MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 2, 0);
+        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 2, 1, 0);
+        MultiFab::Copy(plotmf[ilev], vfrc, 0, 3, 1, 0);
+        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 4, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 6, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 8, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 10, 2, 0);
+        MultiFab::Copy(plotmf[ilev], ccent_x[ilev], 0, 12, 1, 0);
+        MultiFab::Copy(plotmf[ilev], ccent_y[ilev], 0, 13, 1, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
-                            {"phi","rhs","vfrac", "phieb", "grad_x", "grad_y", "grad_eb", "ccent_x", "ccent_y"},
+                            {"phi_x", "phi_y", "rhs","vfrac", 
+                             "phieb_x", "phieb_y",
+                             "grad_x_x", "grad_y_x", "grad_x_y", "grad_y_y", "grad_x_eb", "grad_y_eb", 
+                             "ccent_x", "ccent_y"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
 
@@ -291,11 +294,11 @@ MyTest::initData ()
         factory[ilev].reset(new EBFArrayBoxFactory(eb_level, geom[ilev], grids[ilev], dmap[ilev],
                                                    {2,2,2}, EBSupport::full));
 
-        phi[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
-        phieb[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
-        grad_x[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
-        grad_y[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
-        grad_eb[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        phi[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
+        phieb[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
+        grad_x[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
+        grad_y[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
+        grad_eb[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
         ccent_x[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
         ccent_y[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
         rhs[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
@@ -344,12 +347,14 @@ MyTest::initData ()
                    auto lw = poiseuille_1d_left_wall;
                    auto rot = (poiseuille_1d_rotation/180.)*M_PI;
 
-                   Real rx = (i+0.5 + fcy(i,j,k))*dx[0];
-                   Real ry = (j+0.5 + fcx(i,j,k))*dx[1];
+                   Real rx = (i+0.5 + fcy(i,j,k,0))*dx[0];
+                   Real ry = (j+0.5 + fcx(i,j,k,0))*dx[1];
 
                    auto RX = rx*std::cos(rot) + ry*std::sin(rot) - lw;
 
-                   fab(i,j,k) = (!flag(i,j,k).isCovered()) ? RX * (H - RX) : 0.0;
+                   auto phi_mag = (!flag(i,j,k).isCovered()) ? RX * (H - RX) : 0.0;
+                   fab(i,j,k,0) = -1.0 * phi_mag * std::sin(rot);
+                   fab(i,j,k,1) =  phi_mag * std::cos(rot);
 
                });
             }

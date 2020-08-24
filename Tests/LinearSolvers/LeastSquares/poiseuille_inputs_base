@@ -21,4 +21,4 @@ poiseuille_1d_left_wall = 0.225
 poiseuille_1d_right_wall = 1.225
 poiseuille_1d_rotation = 0.
 
-plot_file = "plot-x"
+plot_file = "plot-base"
