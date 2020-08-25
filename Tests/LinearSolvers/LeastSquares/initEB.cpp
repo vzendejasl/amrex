@@ -57,23 +57,26 @@ MyTest::initializeEB ()
         auto gshop = EB2::makeShop(flower);
         EB2::Build(gshop, geom.back(), max_level, max_level+max_coarsening_level);
     }
-    else if (geom_type == "box") {
-        Vector<Real> lo(3);
-        Vector<Real> hi(3);
+    else if (geom_type == "channel") {
+        Vector<Real> pt_on_left_wall(3);
+        Real width;
         bool fluid_inside = true;
         Real rotation = 0.0;
-        int rotation_axe = 0;
         
-        pp.getarr("box_lo", lo, 0, 3);
-        pp.getarr("box_hi", hi, 0, 3);
-        pp.get("box_has_fluid_inside", fluid_inside);
-        pp.get("box_rotation", rotation);
-        pp.get("box_rotation_axe", rotation_axe);
+        pp.getarr("channel_pt_on_left_wall", pt_on_left_wall, 0, 3);
+        pp.get("channel_width", width);
+        pp.get("channel_has_fluid_inside", fluid_inside);
+        pp.get("channel_rotation", rotation);
         rotation = (rotation/180.) * M_PI;
 
-        EB2::BoxIF box({AMREX_D_DECL(lo[0],lo[1],lo[2])}, {AMREX_D_DECL(hi[0],hi[1],hi[2])}, fluid_inside);
-        auto rotated_box = EB2::rotate(box, rotation, rotation_axe);
-        auto gshop = EB2::makeShop(rotated_box);
+        EB2::PlaneIF left({AMREX_D_DECL(pt_on_left_wall[0],pt_on_left_wall[1],0.0)}, 
+                         {AMREX_D_DECL(-std::cos(rotation),-std::sin(rotation),0.0)}, 
+                         fluid_inside);
+        EB2::PlaneIF right({AMREX_D_DECL(pt_on_left_wall[0] + width*cos(rotation),pt_on_left_wall[1] + width*sin(rotation),0.0)}, 
+                         {AMREX_D_DECL(std::cos(rotation),std::sin(rotation),0.0)}, 
+                         fluid_inside);
+        auto channel = EB2::makeUnion(left, right);
+        auto gshop = EB2::makeShop(channel);
         EB2::Build(gshop, geom.back(), max_level, max_level+max_coarsening_level);
     }
     else

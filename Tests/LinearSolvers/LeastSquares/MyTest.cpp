@@ -235,8 +235,8 @@ MyTest::readParameters ()
     pp.query("use_petsc",use_petsc);
 #endif
     pp.query("use_poiseuille_1d", use_poiseuille_1d);
-    pp.query("poiseuille_1d_left_wall",poiseuille_1d_left_wall);
-    pp.query("poiseuille_1d_right_wall",poiseuille_1d_right_wall);
+    pp.queryarr("poiseuille_1d_pt_on_left_wall",poiseuille_1d_pt_on_left_wall);
+    pp.query("poiseuille_1d_width",poiseuille_1d_width);
     pp.query("poiseuille_1d_rotation",poiseuille_1d_rotation);
 }
 
@@ -338,21 +338,25 @@ MyTest::initData ()
             Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
 
             if (use_poiseuille_1d) {
-               Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
-               Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
+               Array4<Real const> const& ccent = (factory[ilev]->getCentroid()).array(mfi);
                amrex::ParallelFor(bx,
                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                {
-                   auto H = poiseuille_1d_right_wall - poiseuille_1d_left_wall;
-                   auto lw = poiseuille_1d_left_wall;
-                   auto rot = (poiseuille_1d_rotation/180.)*M_PI;
+                   double W = poiseuille_1d_width;
+                   double rot = (poiseuille_1d_rotation/180.)*M_PI;
+                   double m = std::tan(0.5*M_PI + rot);
+                   
+                   double a = m;
+                   double b = -1.0;
+                   double c = poiseuille_1d_pt_on_left_wall[1] - m * poiseuille_1d_pt_on_left_wall[0];
+                     
 
-                   Real rx = (i+0.5 + fcy(i,j,k,0))*dx[0];
-                   Real ry = (j+0.5 + fcx(i,j,k,0))*dx[1];
+                   Real rx = (i+0.5 + ccent(i,j,k,0))*dx[0];
+                   Real ry = (j+0.5 + ccent(i,j,k,1))*dx[1];
 
-                   auto RX = rx*std::cos(rot) + ry*std::sin(rot) - lw;
+                   auto d = std::fabs(a*rx + b*ry + c) / sqrt(a*a + b*b);
 
-                   auto phi_mag = (!flag(i,j,k).isCovered()) ? RX * (H - RX) : 0.0;
+                   auto phi_mag = (!flag(i,j,k).isCovered()) ? d * (W - d) : 0.0;
                    fab(i,j,k,0) = -1.0 * phi_mag * std::sin(rot);
                    fab(i,j,k,1) =  phi_mag * std::cos(rot);
 

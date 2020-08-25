@@ -48,8 +48,8 @@ private:
     bool use_hypre = false;
     bool use_petsc = false;
     bool use_poiseuille_1d = false;
-    amrex::Real poiseuille_1d_left_wall = 0.225;
-    amrex::Real poiseuille_1d_right_wall = 1.225;
+    amrex::Vector<amrex::Real> poiseuille_1d_pt_on_left_wall = amrex::Vector<amrex::Real>(3,0.0);
+    amrex::Real poiseuille_1d_width = 1.0;
     amrex::Real poiseuille_1d_rotation = 0.;
 
     amrex::Vector<amrex::Geometry> geom;
