@@ -58,22 +58,22 @@ MyTest::initializeEB ()
         EB2::Build(gshop, geom.back(), max_level, max_level+max_coarsening_level);
     }
     else if (geom_type == "channel") {
-        Vector<Real> pt_on_left_wall(3);
-        Real width;
+        Vector<Real> pt_on_top_wall(3);
+        Real height;
         bool fluid_inside = true;
         Real rotation = 0.0;
         
-        pp.getarr("channel_pt_on_left_wall", pt_on_left_wall, 0, 3);
-        pp.get("channel_width", width);
+        pp.getarr("channel_pt_on_top_wall", pt_on_top_wall, 0, 3);
+        pp.get("channel_height", height);
         pp.get("channel_has_fluid_inside", fluid_inside);
         pp.get("channel_rotation", rotation);
         rotation = (rotation/180.) * M_PI;
 
-        EB2::PlaneIF left({AMREX_D_DECL(pt_on_left_wall[0],pt_on_left_wall[1],0.0)}, 
-                         {AMREX_D_DECL(-std::cos(rotation),-std::sin(rotation),0.0)}, 
+        EB2::PlaneIF left({AMREX_D_DECL(pt_on_top_wall[0],pt_on_top_wall[1],0.0)}, 
+                         {AMREX_D_DECL(-std::sin(rotation),std::cos(rotation),0.0)}, 
                          fluid_inside);
-        EB2::PlaneIF right({AMREX_D_DECL(pt_on_left_wall[0] + width*cos(rotation),pt_on_left_wall[1] + width*sin(rotation),0.0)}, 
-                         {AMREX_D_DECL(std::cos(rotation),std::sin(rotation),0.0)}, 
+        EB2::PlaneIF right({AMREX_D_DECL(pt_on_top_wall[0], pt_on_top_wall[1] - (height/std::cos(rotation)),0.0)}, 
+                         {AMREX_D_DECL(std::sin(rotation),-std::cos(rotation),0.0)}, 
                          fluid_inside);
         auto channel = EB2::makeUnion(left, right);
         auto gshop = EB2::makeShop(channel);

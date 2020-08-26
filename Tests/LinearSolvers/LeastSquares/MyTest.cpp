@@ -184,6 +184,18 @@ MyTest::writePlotfile ()
                              "ccent_x", "ccent_y"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
+    
+    Vector<MultiFab> plotmf_analytic(max_level+1);
+    for (int ilev = 0; ilev <= max_level; ++ilev) {
+        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],4,0);
+        MultiFab::Copy(plotmf_analytic[ilev], grad_x_analytic[ilev], 0, 0, 2, 0);
+        MultiFab::Copy(plotmf_analytic[ilev], grad_y_analytic[ilev], 0, 2, 2, 0);
+    }
+    WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
+                            amrex::GetVecOfConstPtrs(plotmf_analytic),
+                            {"grad_x_x", "grad_y_x", "grad_x_y","grad_y_y"},
+                            geom, 0.0, Vector<int>(max_level+1,0),
+                            Vector<IntVect>(max_level,IntVect{2}));
 
 }
 
@@ -235,8 +247,8 @@ MyTest::readParameters ()
     pp.query("use_petsc",use_petsc);
 #endif
     pp.query("use_poiseuille_1d", use_poiseuille_1d);
-    pp.queryarr("poiseuille_1d_pt_on_left_wall",poiseuille_1d_pt_on_left_wall);
-    pp.query("poiseuille_1d_width",poiseuille_1d_width);
+    pp.queryarr("poiseuille_1d_pt_on_top_wall",poiseuille_1d_pt_on_top_wall);
+    pp.query("poiseuille_1d_height",poiseuille_1d_height);
     pp.query("poiseuille_1d_rotation",poiseuille_1d_rotation);
 }
 
@@ -277,7 +289,9 @@ MyTest::initData ()
     phi.resize(nlevels);
     phieb.resize(nlevels);
     grad_x.resize(nlevels);
+    grad_x_analytic.resize(nlevels);
     grad_y.resize(nlevels);
+    grad_y_analytic.resize(nlevels);
     grad_eb.resize(nlevels);
     ccent_x.resize(nlevels);
     ccent_y.resize(nlevels);
@@ -297,7 +311,9 @@ MyTest::initData ()
         phi[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
         phieb[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
         grad_x[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
+        grad_x_analytic[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
         grad_y[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
+        grad_y_analytic[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
         grad_eb[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
         ccent_x[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
         ccent_y[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
@@ -315,7 +331,9 @@ MyTest::initData ()
         phi[ilev].setVal(0.0);
         phieb[ilev].setVal(0.0);
         grad_x[ilev].setVal(1e40);
+        grad_x_analytic[ilev].setVal(1e40);
         grad_y[ilev].setVal(1e40);
+        grad_y_analytic[ilev].setVal(1e40);
         grad_eb[ilev].setVal(1e40);
         ccent_x[ilev].setVal(0.0);
         ccent_y[ilev].setVal(0.0);
@@ -333,32 +351,54 @@ MyTest::initData ()
         {
             const Box& bx = mfi.fabbox();
             Array4<Real> const& fab = phi[ilev].array(mfi);
+            Array4<Real> const& fab_gx = grad_x_analytic[ilev].array(mfi);
+            Array4<Real> const& fab_gy = grad_y_analytic[ilev].array(mfi);
 
             const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
             Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
 
             if (use_poiseuille_1d) {
                Array4<Real const> const& ccent = (factory[ilev]->getCentroid()).array(mfi);
+               Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
+               Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
+               Array4<Real const> const& apx   = (factory[ilev]->getAreaFrac())[0]->const_array(mfi);
+               Array4<Real const> const& apy   = (factory[ilev]->getAreaFrac())[1]->const_array(mfi);
+
                amrex::ParallelFor(bx,
                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                {
-                   double W = poiseuille_1d_width;
-                   double rot = (poiseuille_1d_rotation/180.)*M_PI;
-                   double m = std::tan(0.5*M_PI + rot);
+                   double H = poiseuille_1d_height;
+                   double t = (poiseuille_1d_rotation/180.)*M_PI;
                    
-                   double a = m;
+                   double a = std::tan(t);
                    double b = -1.0;
-                   double c = poiseuille_1d_pt_on_left_wall[1] - m * poiseuille_1d_pt_on_left_wall[0];
+                   double c = poiseuille_1d_pt_on_top_wall[1] - std::tan(t)*poiseuille_1d_pt_on_top_wall[0];
                      
 
                    Real rx = (i+0.5 + ccent(i,j,k,0))*dx[0];
                    Real ry = (j+0.5 + ccent(i,j,k,1))*dx[1];
 
-                   auto d = std::fabs(a*rx + b*ry + c) / sqrt(a*a + b*b);
+                   auto d = std::fabs(a*rx + b*ry + c)/std::sqrt(a*a + b*b);
 
-                   auto phi_mag = (!flag(i,j,k).isCovered()) ? d * (W - d) : 0.0;
-                   fab(i,j,k,0) = -1.0 * phi_mag * std::sin(rot);
-                   fab(i,j,k,1) =  phi_mag * std::cos(rot);
+                   auto phi_mag = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+                   fab(i,j,k,0) = phi_mag * std::cos(t);
+                   fab(i,j,k,1) = phi_mag * std::sin(t);
+
+                   if( flag(i,j,k).isCovered()) {
+                     fab_gx(i,j,k,0) = 0.0;
+                     fab_gx(i,j,k,1) = 0.0;
+                     fab_gy(i,j,k,0) = 0.0;
+                     fab_gy(i,j,k,1) = 0.0;
+                   }
+                   else {
+                     Real rxl = i * dx[0];
+                     Real ryl = j * dx[1];
+                     Real fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
+                     fab_gx(i,j,k,0) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
+                     fab_gx(i,j,k,1) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
+                     fab_gy(i,j,k,0) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+                     fab_gy(i,j,k,1) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+                   }
 
                });
             }

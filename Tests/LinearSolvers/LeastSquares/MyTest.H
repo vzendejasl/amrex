@@ -48,8 +48,8 @@ private:
     bool use_hypre = false;
     bool use_petsc = false;
     bool use_poiseuille_1d = false;
-    amrex::Vector<amrex::Real> poiseuille_1d_pt_on_left_wall = amrex::Vector<amrex::Real>(3,0.0);
-    amrex::Real poiseuille_1d_width = 1.0;
+    amrex::Vector<amrex::Real> poiseuille_1d_pt_on_top_wall = amrex::Vector<amrex::Real>(3,0.0);
+    amrex::Real poiseuille_1d_height = 1.0;
     amrex::Real poiseuille_1d_rotation = 0.;
 
     amrex::Vector<amrex::Geometry> geom;
@@ -60,7 +60,9 @@ private:
     amrex::Vector<amrex::MultiFab> phi;
     amrex::Vector<amrex::MultiFab> phieb;
     amrex::Vector<amrex::MultiFab> grad_x;
+    amrex::Vector<amrex::MultiFab> grad_x_analytic;
     amrex::Vector<amrex::MultiFab> grad_y;
+    amrex::Vector<amrex::MultiFab> grad_y_analytic;
     amrex::Vector<amrex::MultiFab> grad_eb;
     amrex::Vector<amrex::MultiFab> ccent_x;
     amrex::Vector<amrex::MultiFab> ccent_y;

@@ -1,8 +1,8 @@
 eb2.geom_type = channel
 
-eb2.channel_pt_on_left_wall = 0.2  0.0  0.0
-eb2.channel_width = 1.0
-eb2.channel_rotation = -30.
+eb2.channel_pt_on_top_wall = 0.2  0.0  0.0
+eb2.channel_height = 1.0
+eb2.channel_rotation = 60.
 eb2.channel_has_fluid_inside = 1
 
 max_level = 0
@@ -15,8 +15,8 @@ prob_hi = 2.0  2.0   0.
 is_periodic = 0  0  0
 
 use_poiseuille_1d = 1
-poiseuille_1d_pt_on_left_wall = 0.2  0.0  0.0
-poiseuille_1d_width = 1.0
-poiseuille_1d_rotation = -30.
+poiseuille_1d_pt_on_top_wall = 0.2  0.0  0.0
+poiseuille_1d_height = 1.0
+poiseuille_1d_rotation = 60.
 
 plot_file = "plot-askew"
