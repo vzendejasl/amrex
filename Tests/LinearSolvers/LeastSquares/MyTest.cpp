@@ -367,12 +367,12 @@ MyTest::initData ()
                amrex::ParallelFor(bx,
                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                {
-                   double H = poiseuille_1d_height;
-                   double t = (poiseuille_1d_rotation/180.)*M_PI;
+                   Real H = poiseuille_1d_height;
+                   Real t = (poiseuille_1d_rotation/180.)*M_PI;
                    
-                   double a = std::tan(t);
-                   double b = -1.0;
-                   double c = poiseuille_1d_pt_on_top_wall[1] - std::tan(t)*poiseuille_1d_pt_on_top_wall[0];
+                   Real a = std::tan(t);
+                   Real b = -1.0;
+                   Real c = poiseuille_1d_pt_on_top_wall[1] - std::tan(t)*poiseuille_1d_pt_on_top_wall[0];
                      
 
                    Real rx = (i+0.5 + ccent(i,j,k,0))*dx[0];
@@ -392,10 +392,14 @@ MyTest::initData ()
                    }
                    else {
                      Real rxl = i * dx[0];
-                     Real ryl = j * dx[1];
+                     Real ryl = (j+0.5) * dx[1];
                      Real fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
                      fab_gx(i,j,k,0) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
                      fab_gx(i,j,k,1) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
+
+                     rxl = (i+0.5) * dx[0];
+                     ryl = j * dx[1];
+                     fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
                      fab_gy(i,j,k,0) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
                      fab_gy(i,j,k,1) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
                    }
