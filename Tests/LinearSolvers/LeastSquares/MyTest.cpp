@@ -351,7 +351,7 @@ MyTest::initData ()
 
         const Real pi = 4.0*std::atan(1.0);
 
-        for (MFIter mfi(rhs[ilev]); mfi.isValid(); ++mfi)
+        for (MFIter mfi(phi[ilev]); mfi.isValid(); ++mfi)
         {
             const Box& bx = mfi.fabbox();
             Array4<Real> const& fab = phi[ilev].array(mfi);
@@ -425,6 +425,7 @@ MyTest::initData ()
                    }
 
                });
+
             }
             else {
                amrex::ParallelFor(bx,
@@ -437,8 +438,5 @@ MyTest::initData ()
                });
             }
         }
-
-        phi[ilev].FillBoundary(geom[ilev].periodicity());
-
     }
 }
