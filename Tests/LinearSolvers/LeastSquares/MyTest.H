@@ -64,6 +64,7 @@ private:
     amrex::Vector<amrex::MultiFab> grad_y;
     amrex::Vector<amrex::MultiFab> grad_y_analytic;
     amrex::Vector<amrex::MultiFab> grad_eb;
+    amrex::Vector<amrex::MultiFab> grad_eb_analytic;
     amrex::Vector<amrex::MultiFab> ccent_x;
     amrex::Vector<amrex::MultiFab> ccent_y;
     amrex::Vector<amrex::MultiFab> rhs;
