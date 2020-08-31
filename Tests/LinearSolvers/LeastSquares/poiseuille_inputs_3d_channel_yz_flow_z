@@ -1,0 +1,24 @@
+eb2.geom_type = channel
+
+eb2.channel_lo = 0.225  -50.0  -50.0
+eb2.channel_hi = 1.225   50.0   50.0
+eb2.channel_has_fluid_inside = 1
+
+eb2.extend_domain_face = false
+
+max_level = 0
+ref_ratio = 2
+n_cell = 14
+max_grid_size = 64
+max_coarsening_level = 0
+prob_lo = 0.    0.    0.
+prob_hi = 1.4  14.0  14.0
+is_periodic = 0  0  0
+
+use_poiseuille_1d = 1
+poiseuille_1d_flow_dir = 2
+poiseuille_1d_bottom = 0.225
+poiseuille_1d_height_dir = 0
+poiseuille_1d_height = 1.0
+
+plot_file = "plot-yz-z"

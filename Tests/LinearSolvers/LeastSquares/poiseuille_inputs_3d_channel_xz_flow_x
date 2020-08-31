@@ -21,4 +21,4 @@ poiseuille_1d_bottom = 0.225
 poiseuille_1d_height_dir = 1
 poiseuille_1d_height = 1.0
 
-plot_file = "plot-base-3d"
+plot_file = "plot-xz-x"

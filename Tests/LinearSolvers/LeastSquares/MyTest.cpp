@@ -563,7 +563,7 @@ MyTest::initData ()
 
                         Real rxeb = (i+0.5+bcent(i,j,k,0)) * dx[0];
                         d = rxeb-bot;   
-                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[0];
+                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[0] * norm(i,j,k,0);
                      }
 
                    }
@@ -583,11 +583,11 @@ MyTest::initData ()
 
                         Real ryeb = (j+0.5+bcent(i,j,k,1)) * dx[1];
                         d = ryeb-bot;   
-                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[1];
+                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[1] * norm(i,j,k,1);
                      }
                    }
                    else if(dir == 2) {
-                     Real rz = (j+0.5+ccent(i,j,k,2)) * dx[2];
+                     Real rz = (k+0.5+ccent(i,j,k,2)) * dx[2];
                      d = rz-bot;
                      fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
 
@@ -602,7 +602,7 @@ MyTest::initData ()
 
                         Real rzeb = (k+0.5+bcent(i,j,k,2)) * dx[2];
                         d = rzeb-bot;   
-                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[2];
+                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[2] * norm(i,j,k,2);
                      }
                    }
                    else {
