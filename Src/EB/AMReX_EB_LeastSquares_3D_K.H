@@ -331,7 +331,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
     // Order of column -- first 9 are cell centroids, second 9 are EB centroids
 
     for (int irow = 0; irow < 36; irow++)
-        for (int icol = 0; icol < 6; icol++)
+        for (int icol = 0; icol < 10; icol++)
             Amatrix(irow,icol) =  0.0;
 
     //  Columns 0-3: [e x y z]
@@ -344,7 +344,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
     
                 Real x_off = static_cast<Real>(ii-i) + 0.5;
                 Real y_off = static_cast<Real>(jj-j); 
-                Real z_off = static_cast<Real>(jj-j); 
+                Real z_off = static_cast<Real>(kk-k); 
     
                 Amatrix(a_ind,0) = 1.0;
                 Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0);
@@ -361,7 +361,7 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
             }
 
     // Columns 4-9 : [x*x  x*y  y*y  x*z  y*z  z*z]
-    for (int irow = 0; irow < 12; irow++)
+    for (int irow = 0; irow < 36; irow++)
     {
        Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,1);
        Amatrix(irow,5) =  Amatrix(irow,1) * Amatrix(irow,2);
@@ -444,7 +444,7 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
             }
 
     // Columns 4-9 : [x*x  x*y  y*y  x*z  y*z  z*z]
-    for (int irow = 0; irow < 12; irow++)
+    for (int irow = 0; irow < 36; irow++)
     {
        Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,1);
        Amatrix(irow,5) =  Amatrix(irow,1) * Amatrix(irow,2);
@@ -497,7 +497,7 @@ Real grad_z_of_phi_on_centroids(int i,int j,int k,int n,
     // Order of column -- first 9 are cell centroids, second 9 are EB centroids
 
     for (int irow = 0; irow < 36; irow++)
-        for (int icol = 0; icol < 6; icol++)
+        for (int icol = 0; icol < 10; icol++)
             Amatrix(irow,icol) =  0.0;
 
     //  Columns 0-3: [e x y z]
@@ -531,7 +531,7 @@ Real grad_z_of_phi_on_centroids(int i,int j,int k,int n,
     }
 
     // Columns 4-9 : [x*x  x*y  y*y  x*z  y*z  z*z]
-    for (int irow = 0; irow < 12; irow++)
+    for (int irow = 0; irow < 36; irow++)
     {
        Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,1);
        Amatrix(irow,5) =  Amatrix(irow,1) * Amatrix(irow,2);
@@ -581,7 +581,7 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
     // Order of column -- first 27 are cell centroids, second 27 are EB centroids
 
     for (int irow = 0; irow < 54; irow++)
-        for (int icol = 0; icol < 6; icol++)
+        for (int icol = 0; icol < 10; icol++)
             Amatrix(irow,icol) =  0.0;
 
     //  Columns 0-3: [e x y z]
