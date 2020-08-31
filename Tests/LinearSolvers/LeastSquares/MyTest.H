@@ -51,6 +51,9 @@ private:
     amrex::Vector<amrex::Real> poiseuille_1d_pt_on_top_wall = amrex::Vector<amrex::Real>(3,0.0);
     amrex::Real poiseuille_1d_height = 1.0;
     amrex::Real poiseuille_1d_rotation = 0.;
+    int poiseuille_1d_flow_dir = 0;
+    int poiseuille_1d_height_dir = 1;
+    amrex::Real poiseuille_1d_bottom = 0.0;
 
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;
@@ -63,10 +66,11 @@ private:
     amrex::Vector<amrex::MultiFab> grad_x_analytic;
     amrex::Vector<amrex::MultiFab> grad_y;
     amrex::Vector<amrex::MultiFab> grad_y_analytic;
+    amrex::Vector<amrex::MultiFab> grad_z;
+    amrex::Vector<amrex::MultiFab> grad_z_analytic;
     amrex::Vector<amrex::MultiFab> grad_eb;
     amrex::Vector<amrex::MultiFab> grad_eb_analytic;
-    amrex::Vector<amrex::MultiFab> ccent_x;
-    amrex::Vector<amrex::MultiFab> ccent_y;
+    amrex::Vector<amrex::MultiFab> ccentr;
     amrex::Vector<amrex::MultiFab> rhs;
     amrex::Vector<amrex::MultiFab> acoef;
     amrex::Vector<amrex::Array<amrex::MultiFab,AMREX_SPACEDIM> > bcoef;

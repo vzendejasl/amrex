@@ -1380,6 +1380,23 @@ void mlebabeclap_normalize (Box const& box, Array4<Real> const& phi,
     });
 }
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void mlebabeclap_cc0 (Box const& box, Array4<Real> const& coeff0,
+                      Array4<Real      > const& x, Array4<Real const> const& a,
+                      Array4<Real const> const& bX, Array4<Real const> const& bY, Array4<Real const> const& bZ,
+                      Array4<const int> const& ccm, Array4<EBCellFlag const> const& flag,
+                      Array4<Real const> const& vfrc, 
+                      Array4<Real const> const& apx, Array4<Real const> const& apy, Array4<Real const> const& apz,
+                      Array4<Real const> const& fcx, Array4<Real const> const& fcy, Array4<Real const> const& fcz,
+                      Array4<Real const> const& ccent, Array4<Real const> const& ba,
+                      Array4<Real const> const& bcent, Array4<Real const> const& beb,
+                      Array4<Real const> const& phieb,
+                      bool is_eb_dirichlet, bool is_eb_inhomog, 
+                      GpuArray<Real,AMREX_SPACEDIM> const& dxinv,
+                      Real alpha, Real beta, int ncomp, 
+                      bool beta_on_centroid, bool phi_on_centroid) noexcept
+{}
+
 }
 
 #endif

@@ -7,7 +7,11 @@
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_EB2.H>
 
+#if (AMREX_SPACEDIM)== 2
 #include <AMReX_EB_LeastSquares_2D_K.H>
+#else
+#include <AMReX_EB_LeastSquares_3D_K.H>
+#endif
 
 #include <cmath>
 
@@ -41,9 +45,9 @@ MyTest::compute_gradient ()
         Array4<Real> const& phi_eb_arr = phieb[ilev].array(mfi);
         Array4<Real> const& grad_x_arr = grad_x[ilev].array(mfi);
         Array4<Real> const& grad_y_arr = grad_y[ilev].array(mfi);
+        Array4<Real> const& grad_z_arr = grad_z[ilev].array(mfi);
         Array4<Real> const& grad_eb_arr = grad_eb[ilev].array(mfi);
-        Array4<Real> const& ccent_x_arr = ccent_x[ilev].array(mfi);
-        Array4<Real> const& ccent_y_arr = ccent_y[ilev].array(mfi);
+        Array4<Real> const& ccentr_arr = ccentr[ilev].array(mfi);
 
         Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
         Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
@@ -59,26 +63,30 @@ MyTest::compute_gradient ()
 
         const auto dx = geom[ilev].CellSizeArray();
 
+#if (AMREX_SPACEDIM > 2)
+         Array4<Real const> const& fcz   = (factory[ilev]->getFaceCent())[2]->const_array(mfi);
+         Array4<Real const> const& apz   = (factory[ilev]->getAreaFrac())[2]->const_array(mfi);
+#endif
+
         amrex::ParallelFor(bx, ncomp,
         [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
         {
+            ccentr_arr(i,j,k,n) = ccent(i,j,k,n);
             Real yloc_on_xface = fcx(i,j,k,0);
             Real xloc_on_yface = fcy(i,j,k,0);
             Real nx = norm(i,j,k,0);
             Real ny = norm(i,j,k,1);
-            ccent_x_arr(i,j,k) = ccent(i,j,k,0);
-            ccent_y_arr(i,j,k) = ccent(i,j,k,1);
 
-#if 1
             // There is no need to set these to zero other than it makes using
             // amrvis a lot more friendly.
             if( flag(i,j,k).isCovered()){
               grad_x_arr(i,j,k,n)  = 0.0;
               grad_y_arr(i,j,k,n)  = 0.0;
+              grad_z_arr(i,j,k,n)  = 0.0;
 
             }
-#endif
 
+#if (AMREX_SPACEDIM == 2)
             if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
 
               grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
@@ -99,6 +107,41 @@ MyTest::compute_gradient ()
             if (flag(i,j,k).isSingleValued())
               grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
                         flag, ccent, bcent, nx, ny, is_eb_inhomog);
+#else
+
+            Real zloc_on_xface = fcx(i,j,k,1);
+            Real zloc_on_yface = fcy(i,j,k,1);
+            Real xloc_on_zface = fcz(i,j,k,0);
+            Real yloc_on_zface = fcz(i,j,k,1);
+
+            Real nz = norm(i,j,k,2);
+
+            if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
+
+              grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
+                grad_x_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                           flag, ccent, bcent, apx, apy, apz,
+                                           yloc_on_xface, zloc_on_xface, is_eb_dirichlet, is_eb_inhomog);
+
+              grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
+                grad_y_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                           flag, ccent, bcent, apx, apy, apz,
+                                           xloc_on_yface, zloc_on_yface, is_eb_dirichlet, is_eb_inhomog);
+
+              grad_z_arr(i,j,k,n) = (apz(i,j,k) == 0.0) ? 0.0:
+                grad_z_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                           flag, ccent, bcent, apx, apy, apz,
+                                           xloc_on_zface, yloc_on_zface, is_eb_dirichlet, is_eb_inhomog);
+
+
+            }
+
+
+            if (flag(i,j,k).isSingleValued())
+              grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                        flag, ccent, bcent, nx, ny, nz, is_eb_inhomog);
+
+#endif
 
         });
     }
@@ -165,6 +208,8 @@ MyTest::writePlotfile ()
     Vector<MultiFab> plotmf(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
         const MultiFab& vfrc = factory[ilev]->getVolFrac();
+
+#if (AMREX_SPACEDIM == 2)
         plotmf[ilev].define(grids[ilev],dmap[ilev],14,0);
         MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 2, 0);
         MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 2, 1, 0);
@@ -173,14 +218,16 @@ MyTest::writePlotfile ()
         MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 6, 2, 0);
         MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 8, 2, 0);
         MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 10, 2, 0);
-        MultiFab::Copy(plotmf[ilev], ccent_x[ilev], 0, 12, 1, 0);
-        MultiFab::Copy(plotmf[ilev], ccent_y[ilev], 0, 13, 1, 0);
+        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 12, 2, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
-                            {"u", "v", "rhs","vfrac", 
+                            {"u", "v", 
+                             "rhs","vfrac", 
                              "ueb", "veb",
-                             "dudx", "dvdx", "dudy", "dvdy", "dudn", "dvdn", 
+                             "dudx", "dvdx", 
+                             "dudy", "dvdy", 
+                             "dudn", "dvdn", 
                              "ccent_x", "ccent_y"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
@@ -194,9 +241,54 @@ MyTest::writePlotfile ()
     }
     WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf_analytic),
-                            {"dudx", "dvdx", "dudy","dvdy","dudn","dvdn"},
+                            {"dudx", "dvdx", 
+                             "dudy","dvdy",
+                             "dudn","dvdn"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
+#else
+        plotmf[ilev].define(grids[ilev],dmap[ilev],23,0);
+        MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 3, 0);
+        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 3, 1, 0);
+        MultiFab::Copy(plotmf[ilev], vfrc, 0, 4, 1, 0);
+        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 5, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 8, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 11, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_z[ilev], 0, 14, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 17, 3, 0);
+        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 20, 3, 0);
+    }
+    WriteMultiLevelPlotfile(plot_file_name, max_level+1,
+                            amrex::GetVecOfConstPtrs(plotmf),
+                            {"u", "v", "w",
+                             "rhs","vfrac", 
+                             "ueb", "veb", "web",
+                             "dudx", "dvdx", "dwdx",
+                             "dudy", "dvdy", "dwdy",
+                             "dudz", "dvdz", "dwdz",
+                             "dudn", "dvdn", "dwdn",
+                             "ccent_x", "ccent_y", "ccent_z"},
+                            geom, 0.0, Vector<int>(max_level+1,0),
+                            Vector<IntVect>(max_level,IntVect{2}));
+    
+    Vector<MultiFab> plotmf_analytic(max_level+1);
+    for (int ilev = 0; ilev <= max_level; ++ilev) {
+        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],12,0);
+        MultiFab::Copy(plotmf_analytic[ilev], grad_x_analytic[ilev], 0, 0, 3, 0);
+        MultiFab::Copy(plotmf_analytic[ilev], grad_y_analytic[ilev], 0, 3, 3, 0);
+        MultiFab::Copy(plotmf_analytic[ilev], grad_z_analytic[ilev], 0, 6, 3, 0);
+        MultiFab::Copy(plotmf_analytic[ilev], grad_eb_analytic[ilev], 0, 9, 3, 0);
+    }
+    WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
+                            amrex::GetVecOfConstPtrs(plotmf_analytic),
+                            {"dudx", "dvdx","dwdx",
+                             "dudy","dvdy","dwdy",
+                             "dudz","dvdz","dwdz",
+                             "dudn","dvdn","dwdn"},
+                            geom, 0.0, Vector<int>(max_level+1,0),
+                            Vector<IntVect>(max_level,IntVect{2}));
+    
+#endif
 
 }
 
@@ -251,6 +343,9 @@ MyTest::readParameters ()
     pp.queryarr("poiseuille_1d_pt_on_top_wall",poiseuille_1d_pt_on_top_wall);
     pp.query("poiseuille_1d_height",poiseuille_1d_height);
     pp.query("poiseuille_1d_rotation",poiseuille_1d_rotation);
+    pp.query("poiseuille_1d_flow_dir", poiseuille_1d_flow_dir);
+    pp.query("poiseuille_1d_height_dir", poiseuille_1d_height_dir);
+    pp.query("poiseuille_1d_bottom", poiseuille_1d_bottom);
 }
 
 void
@@ -293,10 +388,11 @@ MyTest::initData ()
     grad_x_analytic.resize(nlevels);
     grad_y.resize(nlevels);
     grad_y_analytic.resize(nlevels);
+    grad_z.resize(nlevels);
+    grad_z_analytic.resize(nlevels);
     grad_eb.resize(nlevels);
     grad_eb_analytic.resize(nlevels);
-    ccent_x.resize(nlevels);
-    ccent_y.resize(nlevels);
+    ccentr.resize(nlevels);
     rhs.resize(nlevels);
     acoef.resize(nlevels);
     bcoef.resize(nlevels);
@@ -310,16 +406,17 @@ MyTest::initData ()
         factory[ilev].reset(new EBFArrayBoxFactory(eb_level, geom[ilev], grids[ilev], dmap[ilev],
                                                    {2,2,2}, EBSupport::full));
 
-        phi[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        phieb[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        grad_x[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        grad_x_analytic[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        grad_y[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        grad_y_analytic[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        grad_eb[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        grad_eb_analytic[ilev].define(grids[ilev], dmap[ilev], 2, 1, MFInfo(), *factory[ilev]);
-        ccent_x[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
-        ccent_y[ilev].define(grids[ilev], dmap[ilev], 1, 1, MFInfo(), *factory[ilev]);
+        phi[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        phieb[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_x[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_x_analytic[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_y[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_y_analytic[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_z[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_z_analytic[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_eb[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        grad_eb_analytic[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        ccentr[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
         rhs[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
         acoef[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -337,10 +434,11 @@ MyTest::initData ()
         grad_x_analytic[ilev].setVal(1e40);
         grad_y[ilev].setVal(1e40);
         grad_y_analytic[ilev].setVal(1e40);
+        grad_z[ilev].setVal(1e40);
+        grad_z_analytic[ilev].setVal(1e40);
         grad_eb[ilev].setVal(1e40);
         grad_eb_analytic[ilev].setVal(1e40);
-        ccent_x[ilev].setVal(0.0);
-        ccent_y[ilev].setVal(0.0);
+        ccentr[ilev].setVal(0.0);
         rhs[ilev].setVal(0.0);
         acoef[ilev].setVal(1.0);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -357,6 +455,7 @@ MyTest::initData ()
             Array4<Real> const& fab = phi[ilev].array(mfi);
             Array4<Real> const& fab_gx = grad_x_analytic[ilev].array(mfi);
             Array4<Real> const& fab_gy = grad_y_analytic[ilev].array(mfi);
+            Array4<Real> const& fab_gz = grad_z_analytic[ilev].array(mfi);
             Array4<Real> const& fab_eb = grad_eb_analytic[ilev].array(mfi);
 
             const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
@@ -370,10 +469,15 @@ MyTest::initData ()
                Array4<Real const> const& apy   = (factory[ilev]->getAreaFrac())[1]->const_array(mfi);
                Array4<Real const> const& norm  = (factory[ilev]->getBndryNormal()).array(mfi);
                Array4<Real const> const& bcent = (factory[ilev]->getBndryCent()).array(mfi);
+#if (AMREX_SPACEDIM > 2)
+               Array4<Real const> const& fcz   = (factory[ilev]->getFaceCent())[2]->const_array(mfi);
+               Array4<Real const> const& apz   = (factory[ilev]->getAreaFrac())[2]->const_array(mfi);
+#endif
 
                amrex::ParallelFor(bx,
                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                {
+#if (AMREX_SPACEDIM == 2)
                    Real H = poiseuille_1d_height;
                    Real t = (poiseuille_1d_rotation/180.)*M_PI;
                    
@@ -423,7 +527,89 @@ MyTest::initData ()
                      fab_eb(i,j,k,0) = dudx*norm(i,j,k,0) + dudy*norm(i,j,k,1);
                      fab_eb(i,j,k,1) = dvdx*norm(i,j,k,0) + dvdy*norm(i,j,k,1);
                    }
+#else
+                   Real H = poiseuille_1d_height;
+                   Real bot = poiseuille_1d_bottom;
+                   int dir = poiseuille_1d_height_dir;
+                   int fdir = poiseuille_1d_flow_dir;
 
+                   fab(i,j,k,0) = 0.0;
+                   fab(i,j,k,1) = 0.0;
+                   fab(i,j,k,2) = 0.0;
+                   fab_gx(i,j,k,0) = 0.0;
+                   fab_gx(i,j,k,1) = 0.0;
+                   fab_gx(i,j,k,2) = 0.0;
+                   fab_gy(i,j,k,0) = 0.0;
+                   fab_gy(i,j,k,1) = 0.0;
+                   fab_gy(i,j,k,2) = 0.0;
+                   fab_gz(i,j,k,0) = 0.0;
+                   fab_gz(i,j,k,1) = 0.0;
+                   fab_gz(i,j,k,2) = 0.0;
+
+                   Real d = 0.0;
+                   if(dir == 0) {
+                     Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
+                     d = rx-bot;
+                     fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+
+                     Real rxl = i * dx[0];
+                     d = rxl-bot;
+                     fab_gx(i,j,k,fdir) = (apx(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[0];
+
+                     if(flag(i,j,k).isSingleValued()) {
+                        fab_eb(i,j,k,0) = 0.0;
+                        fab_eb(i,j,k,1) = 0.0;
+                        fab_eb(i,j,k,2) = 0.0;
+
+                        Real rxeb = (i+0.5+bcent(i,j,k,0)) * dx[0];
+                        d = rxeb-bot;   
+                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[0];
+                     }
+
+                   }
+                   else if(dir == 1) {
+                     Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
+                     d = ry-bot;
+                     fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+
+                     Real ryl = j * dx[1];
+                     d = ryl-bot;
+                     fab_gy(i,j,k,fdir) = (apy(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[1];
+
+                     if(flag(i,j,k).isSingleValued()) {
+                        fab_eb(i,j,k,0) = 0.0;
+                        fab_eb(i,j,k,1) = 0.0;
+                        fab_eb(i,j,k,2) = 0.0;
+
+                        Real ryeb = (j+0.5+bcent(i,j,k,1)) * dx[1];
+                        d = ryeb-bot;   
+                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[1];
+                     }
+                   }
+                   else if(dir == 2) {
+                     Real rz = (j+0.5+ccent(i,j,k,2)) * dx[2];
+                     d = rz-bot;
+                     fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+
+                     Real rzl = k * dx[2];
+                     d = rzl-bot;
+                     fab_gz(i,j,k,fdir) = (apz(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[2];
+
+                     if(flag(i,j,k).isSingleValued()) {
+                        fab_eb(i,j,k,0) = 0.0;
+                        fab_eb(i,j,k,1) = 0.0;
+                        fab_eb(i,j,k,2) = 0.0;
+
+                        Real rzeb = (k+0.5+bcent(i,j,k,2)) * dx[2];
+                        d = rzeb-bot;   
+                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[2];
+                     }
+                   }
+                   else {
+                     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(1==1, "Invalid height direction");
+                   }
+
+#endif
                });
 
             }
