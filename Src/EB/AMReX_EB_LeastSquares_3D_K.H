@@ -347,16 +347,16 @@ Real grad_x_of_phi_on_centroids(int i,int j,int k,int n,
                 Real z_off = static_cast<Real>(kk-k); 
     
                 Amatrix(a_ind,0) = 1.0;
-                Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0);
-                Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) - yloc_on_xface;
-                Amatrix(a_ind,3) = z_off + ccent(ii,jj,k,2) - zloc_on_xface;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,kk,0);
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,kk,1) - yloc_on_xface;
+                Amatrix(a_ind,3) = z_off + ccent(ii,jj,kk,2) - zloc_on_xface;
 
-                if (!flag(ii,jj,k).isRegular())
+                if (!flag(ii,jj,kk).isRegular())
                 {
                     Amatrix(a_ind+18,0) = 1.0;
-                    Amatrix(a_ind+18,1) = x_off + bcent(ii,jj,k,0);
-                    Amatrix(a_ind+18,2) = y_off + bcent(ii,jj,k,1) - yloc_on_xface;
-                    Amatrix(a_ind+18,3) = z_off + bcent(ii,jj,k,2) - zloc_on_xface;
+                    Amatrix(a_ind+18,1) = x_off + bcent(ii,jj,kk,0);
+                    Amatrix(a_ind+18,2) = y_off + bcent(ii,jj,kk,1) - yloc_on_xface;
+                    Amatrix(a_ind+18,3) = z_off + bcent(ii,jj,kk,2) - zloc_on_xface;
                 }
             }
 
@@ -421,7 +421,7 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
     for (int jj = j-1; jj <= j; jj++) // Normal to face
       for (int kk = k-1; kk <= k+1; kk++)  // Tangential to face
         for (int ii = i-1; ii <= i+1; ii++)  // Tangential to face
-            if (!flag(ii,jj,k).isCovered())
+            if (!flag(ii,jj,kk).isCovered())
             {
                 int a_ind  = (ii-(i-1)) + 3*(kk-(k-1)) + 9*(jj-(j-1));
 
@@ -430,16 +430,16 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
                 Real z_off = static_cast<Real>(kk-k);
     
                 Amatrix(a_ind,0) = 1.0;
-                Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) - xloc_on_yface;
-                Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1);
-                Amatrix(a_ind,3) = z_off + ccent(ii,jj,k,2) - zloc_on_yface;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,kk,0) - xloc_on_yface;
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,kk,1);
+                Amatrix(a_ind,3) = z_off + ccent(ii,jj,kk,2) - zloc_on_yface;
 
-                if (flag(ii,jj,k).isSingleValued())
+                if (!flag(ii,jj,kk).isRegular())
                 {
                     Amatrix(a_ind+18,0) = 1.0;
-                    Amatrix(a_ind+18,1) = x_off + bcent(ii,jj,k,0) - xloc_on_yface;
-                    Amatrix(a_ind+18,2) = y_off + bcent(ii,jj,k,1);
-                    Amatrix(a_ind+18,3) = z_off + bcent(ii,jj,k,2) - zloc_on_yface;
+                    Amatrix(a_ind+18,1) = x_off + bcent(ii,jj,kk,0) - xloc_on_yface;
+                    Amatrix(a_ind+18,2) = y_off + bcent(ii,jj,kk,1);
+                    Amatrix(a_ind+18,3) = z_off + bcent(ii,jj,kk,2) - zloc_on_yface;
                 }
             }
 

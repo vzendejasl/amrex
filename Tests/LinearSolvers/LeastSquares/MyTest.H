@@ -48,12 +48,14 @@ private:
     bool use_hypre = false;
     bool use_petsc = false;
     bool use_poiseuille_1d = false;
+    bool poiseuille_1d_askew = false;
     amrex::Vector<amrex::Real> poiseuille_1d_pt_on_top_wall = amrex::Vector<amrex::Real>(3,0.0);
     amrex::Real poiseuille_1d_height = 1.0;
     amrex::Real poiseuille_1d_rotation = 0.;
     int poiseuille_1d_flow_dir = 0;
     int poiseuille_1d_height_dir = 1;
     amrex::Real poiseuille_1d_bottom = 0.0;
+    amrex::Vector<amrex::Real> poiseuille_1d_askew_rotation = amrex::Vector<amrex::Real>(2,0.0);
 
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;

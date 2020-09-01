@@ -1,5 +1,6 @@
 eb2.geom_type = channel
 
+eb2.channel_askew = 0
 eb2.channel_lo = 0.225  -50.0  -50.0
 eb2.channel_hi = 1.225   50.0   50.0
 eb2.channel_has_fluid_inside = 1
@@ -16,6 +17,7 @@ prob_hi = 1.4  14.0  14.0
 is_periodic = 0  0  0
 
 use_poiseuille_1d = 1
+poiseuille_1d_askew = 0
 poiseuille_1d_flow_dir = 2
 poiseuille_1d_bottom = 0.225
 poiseuille_1d_height_dir = 0

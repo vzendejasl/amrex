@@ -133,7 +133,6 @@ MyTest::compute_gradient ()
                                            flag, ccent, bcent, apx, apy, apz,
                                            xloc_on_zface, yloc_on_zface, is_eb_dirichlet, is_eb_inhomog);
 
-
             }
 
 
@@ -340,9 +339,11 @@ MyTest::readParameters ()
     pp.query("use_petsc",use_petsc);
 #endif
     pp.query("use_poiseuille_1d", use_poiseuille_1d);
+    pp.query("poiseuille_1d_askew", poiseuille_1d_askew);
     pp.queryarr("poiseuille_1d_pt_on_top_wall",poiseuille_1d_pt_on_top_wall);
     pp.query("poiseuille_1d_height",poiseuille_1d_height);
     pp.query("poiseuille_1d_rotation",poiseuille_1d_rotation);
+    pp.queryarr("poiseuille_1d_askew_rotation",poiseuille_1d_askew_rotation);
     pp.query("poiseuille_1d_flow_dir", poiseuille_1d_flow_dir);
     pp.query("poiseuille_1d_height_dir", poiseuille_1d_height_dir);
     pp.query("poiseuille_1d_bottom", poiseuille_1d_bottom);
@@ -528,87 +529,190 @@ MyTest::initData ()
                      fab_eb(i,j,k,1) = dvdx*norm(i,j,k,0) + dvdy*norm(i,j,k,1);
                    }
 #else
-                   Real H = poiseuille_1d_height;
-                   Real bot = poiseuille_1d_bottom;
-                   int dir = poiseuille_1d_height_dir;
-                   int fdir = poiseuille_1d_flow_dir;
+                   if(poiseuille_1d_askew) {
+                      Real H = poiseuille_1d_height;
+                      int fdir = poiseuille_1d_flow_dir;
+                      Real alpha = (poiseuille_1d_askew_rotation[0]/180.)*M_PI;
+                      Real gamma = (poiseuille_1d_askew_rotation[1]/180.)*M_PI;
 
-                   fab(i,j,k,0) = 0.0;
-                   fab(i,j,k,1) = 0.0;
-                   fab(i,j,k,2) = 0.0;
-                   fab_gx(i,j,k,0) = 0.0;
-                   fab_gx(i,j,k,1) = 0.0;
-                   fab_gx(i,j,k,2) = 0.0;
-                   fab_gy(i,j,k,0) = 0.0;
-                   fab_gy(i,j,k,1) = 0.0;
-                   fab_gy(i,j,k,2) = 0.0;
-                   fab_gz(i,j,k,0) = 0.0;
-                   fab_gz(i,j,k,1) = 0.0;
-                   fab_gz(i,j,k,2) = 0.0;
+                      Real a = std::sin(gamma);
+                      Real b = -std::cos(alpha)*std::cos(gamma);
+                      Real c = std::sin(alpha);
+                      Real d = -a*poiseuille_1d_pt_on_top_wall[0] - b*poiseuille_1d_pt_on_top_wall[1] - c*poiseuille_1d_pt_on_top_wall[2];
+                        
 
-                   Real d = 0.0;
-                   if(dir == 0) {
-                     Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
-                     d = rx-bot;
-                     fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+                      Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
+                      Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
+                      Real rz = (k+0.5+ccent(i,j,k,2)) * dx[2];
 
-                     Real rxl = i * dx[0];
-                     d = rxl-bot;
-                     fab_gx(i,j,k,fdir) = (apx(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[0];
+                      auto dist = std::fabs(a*rx + b*ry + c*rz + d)/std::sqrt(a*a + b*b + c*c);
 
-                     if(flag(i,j,k).isSingleValued()) {
-                        fab_eb(i,j,k,0) = 0.0;
-                        fab_eb(i,j,k,1) = 0.0;
-                        fab_eb(i,j,k,2) = 0.0;
+                      auto phi_mag = (!flag(i,j,k).isCovered()) ? dist * (H - dist) : 0.0;
 
+                      Vector<Real> flow_norm(3, 0.0);
+
+                      if(fdir == 0) {
+                         Real flow_norm_mag = std::sqrt(
+                                                std::cos(alpha)*std::cos(alpha)*std::cos(gamma)*std::cos(gamma) 
+                                                + std::sin(gamma)*std::sin(gamma));
+                         flow_norm[0] = std::cos(alpha)*std::cos(gamma) / flow_norm_mag;
+                         flow_norm[1] = std::sin(gamma) / flow_norm_mag;
+                      }
+                      else if(fdir == 2) {
+                         Real flow_norm_mag = std::sqrt(
+                                                std::cos(alpha)*std::cos(alpha)*std::cos(gamma)*std::cos(gamma) 
+                                                + std::sin(alpha)*std::sin(alpha));
+                         flow_norm[2] = std::cos(alpha)*std::cos(gamma) / flow_norm_mag;
+                         flow_norm[1] = std::sin(alpha) / flow_norm_mag;
+                      }
+                      else {
+                         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(1==1, "Invalid flow direction");
+                      }
+
+                      fab(i,j,k,0) = phi_mag * flow_norm[0];
+                      fab(i,j,k,1) = phi_mag * flow_norm[1];
+                      fab(i,j,k,2) = phi_mag * flow_norm[2];
+
+                      if( flag(i,j,k).isCovered()) {
+                        fab_gx(i,j,k,0) = 0.0;
+                        fab_gx(i,j,k,1) = 0.0;
+                        fab_gx(i,j,k,2) = 0.0;
+                        fab_gy(i,j,k,0) = 0.0;
+                        fab_gy(i,j,k,1) = 0.0;
+                        fab_gy(i,j,k,2) = 0.0;
+                        fab_gz(i,j,k,0) = 0.0;
+                        fab_gz(i,j,k,1) = 0.0;
+                        fab_gz(i,j,k,2) = 0.0;
+                      }
+                      else {
+                        Real rxl = i * dx[0];
+                        Real ryl = (j+0.5+fcx(i,j,k,0)) * dx[1];
+                        Real rzl = (k+0.5+fcx(i,j,k,1)) * dx[2];
+                        Real fac = (H - 2*(a*rxl + b*ryl + c*rzl + d)/(std::sqrt(a*a + b*b + c*c)));
+                        fab_gx(i,j,k,0) = (apx(i,j,k) == 0.0) ? 0.0 : (a*flow_norm[0]/std::sqrt(a*a + b*b + c*c)) * fac * dx[0];
+                        fab_gx(i,j,k,1) = (apx(i,j,k) == 0.0) ? 0.0 : (a*flow_norm[1]/std::sqrt(a*a + b*b + c*c)) * fac * dx[0];
+                        fab_gx(i,j,k,2) = (apx(i,j,k) == 0.0) ? 0.0 : (a*flow_norm[2]/std::sqrt(a*a + b*b + c*c)) * fac * dx[0];
+
+                        rxl = (i+0.5+fcy(i,j,k,0)) * dx[0];
+                        ryl = j * dx[1];
+                        rzl = (k+0.5+fcy(i,j,k,1)) * dx[2];
+                        fac = (H - 2*(a*rxl + b*ryl + c*rzl + d)/(std::sqrt(a*a + b*b + c*c)));
+                        fab_gy(i,j,k,0) = (apy(i,j,k) == 0.0) ? 0.0 : (b*flow_norm[0]/std::sqrt(a*a + b*b + c*c)) * fac * dx[1];
+                        fab_gy(i,j,k,1) = (apy(i,j,k) == 0.0) ? 0.0 : (b*flow_norm[1]/std::sqrt(a*a + b*b + c*c)) * fac * dx[1];
+                        fab_gy(i,j,k,2) = (apy(i,j,k) == 0.0) ? 0.0 : (b*flow_norm[2]/std::sqrt(a*a + b*b + c*c)) * fac * dx[1];
+
+                        rxl = (i+0.5+fcz(i,j,k,0)) * dx[0];
+                        ryl = (j+0.5+fcz(i,j,k,1)) * dx[1];
+                        rzl = k * dx[2];
+                        fac = (H - 2*(a*rxl + b*ryl + c*rzl + d)/(std::sqrt(a*a + b*b + c*c)));
+                        fab_gz(i,j,k,0) = (apz(i,j,k) == 0.0) ? 0.0 : (c*flow_norm[0]/std::sqrt(a*a + b*b + c*c)) * fac * dx[2];
+                        fab_gz(i,j,k,1) = (apz(i,j,k) == 0.0) ? 0.0 : (c*flow_norm[1]/std::sqrt(a*a + b*b + c*c)) * fac * dx[2];
+                        fab_gz(i,j,k,2) = (apz(i,j,k) == 0.0) ? 0.0 : (c*flow_norm[2]/std::sqrt(a*a + b*b + c*c)) * fac * dx[2];
+                      }
+
+                      if(flag(i,j,k).isSingleValued()) {
                         Real rxeb = (i+0.5+bcent(i,j,k,0)) * dx[0];
-                        d = rxeb-bot;   
-                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[0] * norm(i,j,k,0);
-                     }
-
-                   }
-                   else if(dir == 1) {
-                     Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
-                     d = ry-bot;
-                     fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
-
-                     Real ryl = j * dx[1];
-                     d = ryl-bot;
-                     fab_gy(i,j,k,fdir) = (apy(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[1];
-
-                     if(flag(i,j,k).isSingleValued()) {
-                        fab_eb(i,j,k,0) = 0.0;
-                        fab_eb(i,j,k,1) = 0.0;
-                        fab_eb(i,j,k,2) = 0.0;
-
                         Real ryeb = (j+0.5+bcent(i,j,k,1)) * dx[1];
-                        d = ryeb-bot;   
-                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[1] * norm(i,j,k,1);
-                     }
-                   }
-                   else if(dir == 2) {
-                     Real rz = (k+0.5+ccent(i,j,k,2)) * dx[2];
-                     d = rz-bot;
-                     fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
-
-                     Real rzl = k * dx[2];
-                     d = rzl-bot;
-                     fab_gz(i,j,k,fdir) = (apz(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[2];
-
-                     if(flag(i,j,k).isSingleValued()) {
-                        fab_eb(i,j,k,0) = 0.0;
-                        fab_eb(i,j,k,1) = 0.0;
-                        fab_eb(i,j,k,2) = 0.0;
-
                         Real rzeb = (k+0.5+bcent(i,j,k,2)) * dx[2];
-                        d = rzeb-bot;   
-                        fab_eb(i,j,k,fdir) = (H - 2*d) * dx[2] * norm(i,j,k,2);
-                     }
-                   }
-                   else {
-                     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(1==1, "Invalid height direction");
-                   }
+                        Real fac = (H - 2*(a*rxeb+b*ryeb+c*rzeb+d)/(std::sqrt(a*a + b*b + c*c)));
+                        Real dudx = (a*flow_norm[0]/std::sqrt(a*a + b*b + c*c)) * fac * dx[0];
+                        Real dvdx = (a*flow_norm[1]/std::sqrt(a*a + b*b + c*c)) * fac * dx[0];
+                        Real dwdx = (a*flow_norm[2]/std::sqrt(a*a + b*b + c*c)) * fac * dx[0];
+                        Real dudy = (b*flow_norm[0]/std::sqrt(a*a + b*b + c*c)) * fac * dx[1];
+                        Real dvdy = (b*flow_norm[1]/std::sqrt(a*a + b*b + c*c)) * fac * dx[1];
+                        Real dwdy = (b*flow_norm[2]/std::sqrt(a*a + b*b + c*c)) * fac * dx[1];
+                        Real dudz = (c*flow_norm[0]/std::sqrt(a*a + b*b + c*c)) * fac * dx[2];
+                        Real dvdz = (c*flow_norm[1]/std::sqrt(a*a + b*b + c*c)) * fac * dx[2];
+                        Real dwdz = (c*flow_norm[2]/std::sqrt(a*a + b*b + c*c)) * fac * dx[2];
 
+                        fab_eb(i,j,k,0) = dudx*norm(i,j,k,0) + dudy*norm(i,j,k,1) + dudz*norm(i,j,k,2);
+                        fab_eb(i,j,k,1) = dvdx*norm(i,j,k,0) + dvdy*norm(i,j,k,1) + dvdz*norm(i,j,k,2);
+                        fab_eb(i,j,k,2) = dwdx*norm(i,j,k,0) + dwdy*norm(i,j,k,1) + dwdz*norm(i,j,k,2);
+                      }
+
+                   }
+                   else { //grid-aligned
+                      Real H = poiseuille_1d_height;
+                      Real bot = poiseuille_1d_bottom;
+                      int dir = poiseuille_1d_height_dir;
+                      int fdir = poiseuille_1d_flow_dir;
+
+                      fab(i,j,k,0) = 0.0;
+                      fab(i,j,k,1) = 0.0;
+                      fab(i,j,k,2) = 0.0;
+                      fab_gx(i,j,k,0) = 0.0;
+                      fab_gx(i,j,k,1) = 0.0;
+                      fab_gx(i,j,k,2) = 0.0;
+                      fab_gy(i,j,k,0) = 0.0;
+                      fab_gy(i,j,k,1) = 0.0;
+                      fab_gy(i,j,k,2) = 0.0;
+                      fab_gz(i,j,k,0) = 0.0;
+                      fab_gz(i,j,k,1) = 0.0;
+                      fab_gz(i,j,k,2) = 0.0;
+
+                      Real d = 0.0;
+                      if(dir == 0) {
+                        Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
+                        d = rx-bot;
+                        fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+
+                        Real rxl = i * dx[0];
+                        d = rxl-bot;
+                        fab_gx(i,j,k,fdir) = (apx(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[0];
+
+                        if(flag(i,j,k).isSingleValued()) {
+                           fab_eb(i,j,k,0) = 0.0;
+                           fab_eb(i,j,k,1) = 0.0;
+                           fab_eb(i,j,k,2) = 0.0;
+
+                           Real rxeb = (i+0.5+bcent(i,j,k,0)) * dx[0];
+                           d = rxeb-bot;   
+                           fab_eb(i,j,k,fdir) = (H - 2*d) * dx[0] * norm(i,j,k,0);
+                        }
+
+                      }
+                      else if(dir == 1) {
+                        Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
+                        d = ry-bot;
+                        fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+
+                        Real ryl = j * dx[1];
+                        d = ryl-bot;
+                        fab_gy(i,j,k,fdir) = (apy(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[1];
+
+                        if(flag(i,j,k).isSingleValued()) {
+                           fab_eb(i,j,k,0) = 0.0;
+                           fab_eb(i,j,k,1) = 0.0;
+                           fab_eb(i,j,k,2) = 0.0;
+
+                           Real ryeb = (j+0.5+bcent(i,j,k,1)) * dx[1];
+                           d = ryeb-bot;   
+                           fab_eb(i,j,k,fdir) = (H - 2*d) * dx[1] * norm(i,j,k,1);
+                        }
+                      }
+                      else if(dir == 2) {
+                        Real rz = (k+0.5+ccent(i,j,k,2)) * dx[2];
+                        d = rz-bot;
+                        fab(i,j,k,fdir) = (!flag(i,j,k).isCovered()) ? d * (H - d) : 0.0;
+
+                        Real rzl = k * dx[2];
+                        d = rzl-bot;
+                        fab_gz(i,j,k,fdir) = (apz(i,j,k) == 0.0) ? 0.0 : (H - 2*d) * dx[2];
+
+                        if(flag(i,j,k).isSingleValued()) {
+                           fab_eb(i,j,k,0) = 0.0;
+                           fab_eb(i,j,k,1) = 0.0;
+                           fab_eb(i,j,k,2) = 0.0;
+
+                           Real rzeb = (k+0.5+bcent(i,j,k,2)) * dx[2];
+                           d = rzeb-bot;   
+                           fab_eb(i,j,k,fdir) = (H - 2*d) * dx[2] * norm(i,j,k,2);
+                        }
+                      }
+                      else {
+                        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(1==1, "Invalid height direction");
+                      }
+                   }
 #endif
                });
 
