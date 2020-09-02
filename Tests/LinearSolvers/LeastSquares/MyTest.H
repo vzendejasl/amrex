@@ -56,6 +56,7 @@ private:
     int poiseuille_1d_height_dir = 1;
     amrex::Real poiseuille_1d_bottom = 0.0;
     amrex::Vector<amrex::Real> poiseuille_1d_askew_rotation = amrex::Vector<amrex::Real>(2,0.0);
+    int poiseuille_1d_no_flow_dir = 0;
 
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;
