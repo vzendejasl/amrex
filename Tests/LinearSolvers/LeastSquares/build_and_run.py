@@ -53,4 +53,4 @@ if args.fcompare:
          print('################################################################')
          print('Running fcompare for ' + f)
          err = os.system('fcompare ' + f + ' ' + f + '-analytic')
-         print('Done fcompare for ' + t)
+         print('Done fcompare for ' + f)
