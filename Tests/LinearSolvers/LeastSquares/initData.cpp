@@ -21,6 +21,7 @@ MyTest::initData ()
     grad_z_analytic.resize(nlevels);
     grad_eb.resize(nlevels);
     grad_eb_analytic.resize(nlevels);
+    lap_analytic.resize(nlevels);
     ccentr.resize(nlevels);
     rhs.resize(nlevels);
     acoef.resize(nlevels);
@@ -45,15 +46,16 @@ MyTest::initData ()
         grad_z_analytic[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
         grad_eb[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
         grad_eb_analytic[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
+        lap_analytic[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
         ccentr[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
-        rhs[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
-        acoef[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
+        rhs[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
+        acoef[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
             bcoef[ilev][idim].define(amrex::convert(grids[ilev],IntVect::TheDimensionVector(idim)),
-                                     dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
+                                     dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
         }
         if (eb_is_dirichlet) {
-            bcoef_eb[ilev].define(grids[ilev], dmap[ilev], 1, 0, MFInfo(), *factory[ilev]);
+            bcoef_eb[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
             bcoef_eb[ilev].setVal(1.0);
         }
 
@@ -67,9 +69,10 @@ MyTest::initData ()
         grad_z_analytic[ilev].setVal(1e40);
         grad_eb[ilev].setVal(1e40);
         grad_eb_analytic[ilev].setVal(1e40);
+        lap_analytic[ilev].setVal(1e40);
         ccentr[ilev].setVal(0.0);
         rhs[ilev].setVal(0.0);
-        acoef[ilev].setVal(1.0);
+        acoef[ilev].setVal(0.0);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
             bcoef[ilev][idim].setVal(1.0);
         }
@@ -86,6 +89,7 @@ MyTest::initData ()
             Array4<Real> const& fab_gy = grad_y_analytic[ilev].array(mfi);
             Array4<Real> const& fab_gz = grad_z_analytic[ilev].array(mfi);
             Array4<Real> const& fab_eb = grad_eb_analytic[ilev].array(mfi);
+            Array4<Real> const& fab_lap = lap_analytic[ilev].array(mfi);
 
             const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
             Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
@@ -129,6 +133,8 @@ MyTest::initData ()
                      fab_gx(i,j,k,1) = 0.0;
                      fab_gy(i,j,k,0) = 0.0;
                      fab_gy(i,j,k,1) = 0.0;
+                     fab_lap(i,j,k,0) = 0.0;
+                     fab_lap(i,j,k,1) = 0.0;
                    }
                    else {
                      Real rxl = i * dx[0];
@@ -142,6 +148,10 @@ MyTest::initData ()
                      fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
                      fab_gy(i,j,k,0) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
                      fab_gy(i,j,k,1) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+
+                     fab_lap(i,j,k,0) = -2.0*a*std::cos(t)/std::sqrt(a*a + b*b) - 2.0*b*std::cos(t)/std::sqrt(a*a + b*b);
+
+                     fab_lap(i,j,k,1) = -2.0*a*std::sin(t)/std::sqrt(a*a + b*b) - 2.0*b*std::sin(t)/std::sqrt(a*a + b*b);
                    }
 
                    if(flag(i,j,k).isSingleValued()) {

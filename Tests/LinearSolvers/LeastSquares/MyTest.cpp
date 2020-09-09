@@ -149,56 +149,78 @@ MyTest::compute_gradient ()
 void
 MyTest::solve ()
 {
-    for (int ilev = 0; ilev <= max_level; ++ilev) {
-        const MultiFab& vfrc = factory[ilev]->getVolFrac();
-        MultiFab v(vfrc.boxArray(), vfrc.DistributionMap(), 1, 0,
-                   MFInfo(), *factory[ilev]);
-        MultiFab::Copy(v, vfrc, 0, 0, 1, 0);
-        amrex::EB_set_covered(v, 1.0);
-        amrex::Print() << "vfrc min = " << v.min(0) << std::endl;
+    int ncomp = phi[0].nComp();
+    for(int n = 0; n < ncomp; ++n) {
+       Vector<MultiFab> phi_comp(max_level + 1);
+       Vector<MultiFab> rhs_comp(max_level + 1);
+       Vector<MultiFab> acoef_comp(max_level + 1);
+       Vector<Array<MultiFab,AMREX_SPACEDIM> > bcoef_comp(max_level + 1);
+       Vector<MultiFab> bcoef_eb_comp(max_level + 1);
+
+       for (int ilev = 0; ilev <= max_level; ++ilev) {
+           phi_comp[ilev] = MultiFab(phi[ilev], make_alias, n, 1);
+           rhs_comp[ilev] = MultiFab(rhs[ilev], make_alias, n, 1); 
+           acoef_comp[ilev] = MultiFab(acoef[ilev], make_alias, n, 1);
+
+           for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+              bcoef_comp[ilev][idim] = MultiFab(bcoef[ilev][idim], make_alias, n, 1);
+           }
+
+           if (eb_is_dirichlet) {
+              bcoef_eb_comp[ilev] = MultiFab(bcoef_eb[ilev], make_alias, n, 1);
+           }
+
+           const MultiFab& vfrc = factory[ilev]->getVolFrac();
+           MultiFab v(vfrc.boxArray(), vfrc.DistributionMap(), 1, 0,
+                      MFInfo(), *factory[ilev]);
+           MultiFab::Copy(v, vfrc, 0, 0, 1, 0);
+           amrex::EB_set_covered(v, 1.0);
+           amrex::Print() << "vfrc min = " << v.min(0) << std::endl;
+       }
+
+       std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_lobc;
+       std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_hibc;
+       for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
+       {
+           if (geom[0].isPeriodic(idim)) {
+               mlmg_lobc[idim] = LinOpBCType::Periodic;
+               mlmg_hibc[idim] = LinOpBCType::Periodic;
+           } else {
+               mlmg_lobc[idim] = LinOpBCType::Dirichlet;
+               mlmg_hibc[idim] = LinOpBCType::Dirichlet;
+           }
+       }
+
+       LPInfo info;
+       info.setMaxCoarseningLevel(max_coarsening_level);
+
+       MLEBABecLap mleb (geom, grids, dmap, info, amrex::GetVecOfConstPtrs(factory));
+       mleb.setMaxOrder(linop_maxorder);
+       mleb.setPhiOnCentroid();
+
+       mleb.setDomainBC(mlmg_lobc, mlmg_hibc);
+
+       for (int ilev = 0; ilev <= max_level; ++ilev) {
+           mleb.setLevelBC(ilev, &phi_comp[ilev]);
+       }
+
+       mleb.setScalars(scalars[0], scalars[1]);
+
+       for (int ilev = 0; ilev <= max_level; ++ilev) {
+           mleb.setACoeffs(ilev, acoef_comp[ilev]);
+           mleb.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(bcoef_comp[ilev]));
+       }
+
+       if (eb_is_dirichlet) {
+           for (int ilev = 0; ilev <= max_level; ++ilev) {
+               mleb.setEBDirichlet(ilev, phi_comp[ilev], bcoef_eb_comp[ilev]);
+           }
+       }
+
+       MLMG mlmg(mleb);
+
+       mlmg.apply(amrex::GetVecOfPtrs(rhs_comp), amrex::GetVecOfPtrs(phi_comp));
     }
-
-    std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_lobc;
-    std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_hibc;
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-    {
-        if (geom[0].isPeriodic(idim)) {
-            mlmg_lobc[idim] = LinOpBCType::Periodic;
-            mlmg_hibc[idim] = LinOpBCType::Periodic;
-        } else {
-            mlmg_lobc[idim] = LinOpBCType::Dirichlet;
-            mlmg_hibc[idim] = LinOpBCType::Dirichlet;
-        }
-    }
-
-    LPInfo info;
-    info.setMaxCoarseningLevel(max_coarsening_level);
-
-    MLEBABecLap mleb (geom, grids, dmap, info, amrex::GetVecOfConstPtrs(factory));
-    mleb.setMaxOrder(linop_maxorder);
-
-    mleb.setDomainBC(mlmg_lobc, mlmg_hibc);
-
-    for (int ilev = 0; ilev <= max_level; ++ilev) {
-        mleb.setLevelBC(ilev, &phi[ilev]);
-    }
-
-    mleb.setScalars(scalars[0], scalars[1]);
-
-    for (int ilev = 0; ilev <= max_level; ++ilev) {
-        mleb.setACoeffs(ilev, acoef[ilev]);
-        mleb.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(bcoef[ilev]));
-    }
-
-    if (eb_is_dirichlet) {
-        for (int ilev = 0; ilev <= max_level; ++ilev) {
-            mleb.setEBDirichlet(ilev, phi[ilev], bcoef_eb[ilev]);
-        }
-    }
-
-    MLMG mlmg(mleb);
-
-    mlmg.apply(amrex::GetVecOfPtrs(rhs), amrex::GetVecOfPtrs(phi));
 }
 
 void
@@ -209,20 +231,21 @@ MyTest::writePlotfile ()
         const MultiFab& vfrc = factory[ilev]->getVolFrac();
 
 #if (AMREX_SPACEDIM == 2)
-        plotmf[ilev].define(grids[ilev],dmap[ilev],14,0);
+        plotmf[ilev].define(grids[ilev],dmap[ilev],15,0);
         MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 2, 0);
-        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 2, 1, 0);
-        MultiFab::Copy(plotmf[ilev], vfrc, 0, 3, 1, 0);
-        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 4, 2, 0);
-        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 6, 2, 0);
-        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 8, 2, 0);
-        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 10, 2, 0);
-        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 12, 2, 0);
+        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 2, 2, 0);
+        MultiFab::Copy(plotmf[ilev], vfrc, 0, 4, 1, 0);
+        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 5, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 7, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 9, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 11, 2, 0);
+        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 13, 2, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
                             {"u", "v", 
-                             "rhs","vfrac", 
+                             "lapu", "lapv",
+                             "vfrac", 
                              "ueb", "veb",
                              "dudx", "dvdx", 
                              "dudy", "dvdy", 
@@ -233,34 +256,37 @@ MyTest::writePlotfile ()
     
     Vector<MultiFab> plotmf_analytic(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
-        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],6,0);
+        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],8,0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_x_analytic[ilev], 0, 0, 2, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_y_analytic[ilev], 0, 2, 2, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_eb_analytic[ilev], 0, 4, 2, 0);
+        MultiFab::Copy(plotmf_analytic[ilev], lap_analytic[ilev], 0, 6, 2, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf_analytic),
                             {"dudx", "dvdx", 
                              "dudy","dvdy",
-                             "dudn","dvdn"},
+                             "dudy","dvdy",
+                             "lapu","lapv"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
 #else
-        plotmf[ilev].define(grids[ilev],dmap[ilev],23,0);
+        plotmf[ilev].define(grids[ilev],dmap[ilev],25,0);
         MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 3, 0);
-        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 3, 1, 0);
-        MultiFab::Copy(plotmf[ilev], vfrc, 0, 4, 1, 0);
-        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 5, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 8, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 11, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_z[ilev], 0, 14, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 17, 3, 0);
-        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 20, 3, 0);
+        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 3, 3, 0);
+        MultiFab::Copy(plotmf[ilev], vfrc, 0, 6, 1, 0);
+        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 7, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 10, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 13, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_z[ilev], 0, 16, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 19, 3, 0);
+        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 22, 3, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
                             {"u", "v", "w",
-                             "rhs","vfrac", 
+                             "lapu","lapv","lapw",
+                             "vfrac", 
                              "ueb", "veb", "web",
                              "dudx", "dvdx", "dwdx",
                              "dudy", "dvdy", "dwdy",

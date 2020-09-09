@@ -33,7 +33,10 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
         {
             y(i,j,k,n) = 0.0;
         }
-        else if (flag(i,j,k).isRegular())
+        else if (flag(i,j,k).isRegular() and (phi_on_center or
+                 (flag(i-1,j  ,k).isRegular() and flag(i+1,j  ,k).isRegular() and
+                  flag(i  ,j-1,k).isRegular() and flag(i  ,j+1,k).isRegular()) ))
+        //else if (flag(i,j,k).isRegular())
         {
             y(i,j,k,n) = alpha*a(i,j,k)*x(i,j,k,n)
                 - dhx * (bX(i+1,j,k,n)*(x(i+1,j,k,n) - x(i  ,j,k,n))
@@ -1097,7 +1100,7 @@ void mlebabeclap_cc0 (Box const& box, Array4<Real> const& coeff0,
                  amrex::Print() << "FROM FY    " <<  dhy/kappa*apym*fym << " " << -dhy/kappa*apyp*fyp << std::endl;
                  amrex::Print() << "FROM FEB   " << -dhx/kappa*feb <<  std::endl;
                  amrex::Print() << " " << std::endl;
-                 amrex::Abort("cc0 less than zero");
+                 //amrex::Abort("cc0 less than zero");
             }
         }
     });

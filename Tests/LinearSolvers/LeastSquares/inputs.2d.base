@@ -1,3 +1,5 @@
+eb_is_dirichlet = 1
+
 eb2.geom_type = channel
 
 eb2.channel_pt_on_top_wall = 0.0  1.225  0.0

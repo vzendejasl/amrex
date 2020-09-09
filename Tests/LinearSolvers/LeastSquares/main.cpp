@@ -11,12 +11,11 @@ int main (int argc, char* argv[])
         MyTest mytest;
 
         mytest.compute_gradient();
-        mytest.writePlotfile();
 
-//      for (int i = 0; i < 1; ++i) {
-//          mytest.solve();
-//          mytest.writePlotfile();
-//      }
+        for (int i = 0; i < 1; ++i) {
+            mytest.solve();
+            mytest.writePlotfile();
+        }
     }
 
     amrex::Finalize();

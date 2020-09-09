@@ -78,6 +78,7 @@ private:
     amrex::Vector<amrex::MultiFab> acoef;
     amrex::Vector<amrex::Array<amrex::MultiFab,AMREX_SPACEDIM> > bcoef;
     amrex::Vector<amrex::MultiFab> bcoef_eb;
+    amrex::Vector<amrex::MultiFab> lap_analytic;
 };
 
 #endif
