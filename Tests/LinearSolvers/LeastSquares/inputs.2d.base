@@ -15,7 +15,7 @@ n_cell = 14
 max_grid_size = 64
 max_coarsening_level = 0
 prob_lo = 0.   0.   0.
-prob_hi = 14  1.4  0.
+prob_hi = 1.4  1.4  0.
 is_periodic = 1  0  0
 
 use_poiseuille_1d = 1

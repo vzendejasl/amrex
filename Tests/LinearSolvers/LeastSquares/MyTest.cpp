@@ -211,11 +211,14 @@ MyTest::solve ()
            mleb.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(bcoef_comp[ilev]));
        }
 
+
        if (eb_is_dirichlet) {
            for (int ilev = 0; ilev <= max_level; ++ilev) {
-               mleb.setEBDirichlet(ilev, phi_comp[ilev], bcoef_eb_comp[ilev]);
+               //mleb.setEBDirichlet(ilev, phi_comp[ilev], bcoef_eb_comp[ilev]);
+               mleb.setEBHomogDirichlet(ilev, bcoef_eb_comp[ilev]);
            }
        }
+
 
        MLMG mlmg(mleb);
 
