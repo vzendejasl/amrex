@@ -4,7 +4,7 @@ eb2.geom_type = channel
 
 eb2.channel_pt_on_top_wall = 0.225  0.0  0.0
 eb2.channel_height = 1.0
-eb2.channel_rotation = 90
+eb2.channel_rotation = 90.0
 eb2.channel_has_fluid_inside = 1
 
 eb2.extend_domain_face = false
@@ -15,8 +15,9 @@ n_cell = 14
 max_grid_size = 64
 max_coarsening_level = 0
 prob_lo = 0.   0.   0.
-prob_hi = 1.4  14  0.
+prob_hi = 1.4  1.4  0.
 is_periodic = 0  1  0
+scalars = 0  1
 
 use_poiseuille_1d = 1
 poiseuille_1d_pt_on_top_wall = 0.225  0.0  0.0

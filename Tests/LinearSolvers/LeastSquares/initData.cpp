@@ -142,16 +142,16 @@ MyTest::initData ()
                      Real fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
                      fab_gx(i,j,k,0) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
                      fab_gx(i,j,k,1) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
+                     fab_lap(i,j,k,0) = 2.0*a*a*std::cos(t)/(a*a + b*b);
+                     fab_lap(i,j,k,1) = 2.0*a*a*std::sin(t)/(a*a + b*b);
 
                      rxl = (i+0.5+fcy(i,j,k,0)) * dx[0];
                      ryl = j * dx[1];
                      fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
                      fab_gy(i,j,k,0) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
                      fab_gy(i,j,k,1) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
-
-                     fab_lap(i,j,k,0) = -2.0*a*std::cos(t)/std::sqrt(a*a + b*b) - 2.0*b*std::cos(t)/std::sqrt(a*a + b*b);
-
-                     fab_lap(i,j,k,1) = -2.0*a*std::sin(t)/std::sqrt(a*a + b*b) - 2.0*b*std::sin(t)/std::sqrt(a*a + b*b);
+                     fab_lap(i,j,k,0) += 2.0*b*b*std::cos(t)/(a*a + b*b);
+                     fab_lap(i,j,k,1) += 2.0*b*b*std::sin(t)/(a*a + b*b);
                    }
 
                    if(flag(i,j,k).isSingleValued()) {

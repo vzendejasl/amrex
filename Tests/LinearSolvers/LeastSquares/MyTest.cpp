@@ -269,7 +269,7 @@ MyTest::writePlotfile ()
                             amrex::GetVecOfConstPtrs(plotmf_analytic),
                             {"dudx", "dvdx", 
                              "dudy","dvdy",
-                             "dudy","dvdy",
+                             "dudn","dvdn",
                              "lapu","lapv"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
