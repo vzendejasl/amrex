@@ -38,7 +38,7 @@ MyTest::compute_gradient ()
 
     int ncomp = phi[0].nComp();
 
-    for (MFIter mfi(phi[ilev]); mfi.isValid(); ++mfi)
+    for (MFIter mfi(rhs[ilev]); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.fabbox();
         Array4<Real> const& phi_arr = phi[ilev].array(mfi);
