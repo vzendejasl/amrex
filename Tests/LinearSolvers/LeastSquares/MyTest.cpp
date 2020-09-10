@@ -150,6 +150,7 @@ void
 MyTest::solve ()
 {
     int ncomp = phi[0].nComp();
+
     for(int n = 0; n < ncomp; ++n) {
        Vector<MultiFab> phi_comp(max_level + 1);
        Vector<MultiFab> rhs_comp(max_level + 1);
@@ -157,18 +158,25 @@ MyTest::solve ()
        Vector<Array<MultiFab,AMREX_SPACEDIM> > bcoef_comp(max_level + 1);
        Vector<MultiFab> bcoef_eb_comp(max_level + 1);
 
+       Vector<MultiFab> phi_eb(max_level + 1);
+
        for (int ilev = 0; ilev <= max_level; ++ilev) {
-           phi_comp[ilev] = MultiFab(phi[ilev], make_alias, n, 1);
-           rhs_comp[ilev] = MultiFab(rhs[ilev], make_alias, n, 1); 
+           phi_comp[ilev]   = MultiFab(phi[ilev]  , make_alias, n, 1);
+           rhs_comp[ilev]   = MultiFab(rhs[ilev]  , make_alias, n, 1);
            acoef_comp[ilev] = MultiFab(acoef[ilev], make_alias, n, 1);
 
            for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
               bcoef_comp[ilev][idim] = MultiFab(bcoef[ilev][idim], make_alias, n, 1);
            }
 
-           if (eb_is_dirichlet) {
+           if (eb_is_dirichlet or eb_is_homog_dirichlet) {
               bcoef_eb_comp[ilev] = MultiFab(bcoef_eb[ilev], make_alias, n, 1);
            }
+
+           if (eb_is_dirichlet) {
+             phi_eb[ilev] = MultiFab(phi[ilev]  , make_alias, n, 1);
+           }
+
 
            const MultiFab& vfrc = factory[ilev]->getVolFrac();
            MultiFab v(vfrc.boxArray(), vfrc.DistributionMap(), 1, 0,
@@ -212,17 +220,28 @@ MyTest::solve ()
        }
 
 
-       if (eb_is_dirichlet) {
-           for (int ilev = 0; ilev <= max_level; ++ilev) {
-               //mleb.setEBDirichlet(ilev, phi_comp[ilev], bcoef_eb_comp[ilev]);
-               mleb.setEBHomogDirichlet(ilev, bcoef_eb_comp[ilev]);
-           }
+       if (eb_is_homog_dirichlet) {
+         amrex::Print() << "setting EB Homogeneous Dirichlet\n";
+         for (int ilev = 0; ilev <= max_level; ++ilev) {
+           mleb.setEBHomogDirichlet(ilev, bcoef_eb_comp[ilev]);
+         }
+
+       } else if (eb_is_dirichlet) {
+         amrex::Print() << "setting EB Dirichlet\n";
+         for (int ilev = 0; ilev <= max_level; ++ilev) {
+           // This case was setup for Poiseuille flow so the walls
+           // are set to no-slip (zero velocity).
+           phi_eb[ilev].setVal(0.0);
+           mleb.setEBDirichlet(ilev, phi_eb[ilev], bcoef_eb_comp[ilev]);
+         }
        }
 
 
        MLMG mlmg(mleb);
 
        mlmg.apply(amrex::GetVecOfPtrs(rhs_comp), amrex::GetVecOfPtrs(phi_comp));
+
+
     }
 }
 
@@ -246,17 +265,17 @@ MyTest::writePlotfile ()
     }
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
-                            {"u", "v", 
+                            {"u", "v",
                              "lapu", "lapv",
-                             "vfrac", 
+                             "vfrac",
                              "ueb", "veb",
-                             "dudx", "dvdx", 
-                             "dudy", "dvdy", 
-                             "dudn", "dvdn", 
+                             "dudx", "dvdx",
+                             "dudy", "dvdy",
+                             "dudn", "dvdn",
                              "ccent_x", "ccent_y"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
-    
+
     Vector<MultiFab> plotmf_analytic(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
         plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],8,0);
@@ -267,7 +286,7 @@ MyTest::writePlotfile ()
     }
     WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf_analytic),
-                            {"dudx", "dvdx", 
+                            {"dudx", "dvdx",
                              "dudy","dvdy",
                              "dudn","dvdn",
                              "lapu","lapv"},
@@ -289,7 +308,7 @@ MyTest::writePlotfile ()
                             amrex::GetVecOfConstPtrs(plotmf),
                             {"u", "v", "w",
                              "lapu","lapv","lapw",
-                             "vfrac", 
+                             "vfrac",
                              "ueb", "veb", "web",
                              "dudx", "dvdx", "dwdx",
                              "dudy", "dvdy", "dwdy",
@@ -298,7 +317,7 @@ MyTest::writePlotfile ()
                              "ccent_x", "ccent_y", "ccent_z"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
-    
+
     Vector<MultiFab> plotmf_analytic(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
         plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],12,0);
@@ -315,7 +334,7 @@ MyTest::writePlotfile ()
                              "dudn","dvdn","dwdn"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
-    
+
 #endif
 
 }
@@ -331,6 +350,10 @@ MyTest::readParameters ()
     pp.queryarr("is_periodic", is_periodic);
 
     pp.query("eb_is_dirichlet", eb_is_dirichlet);
+    pp.query("eb_is_homog_dirichlet", eb_is_homog_dirichlet);
+
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(eb_is_dirichlet + eb_is_homog_dirichlet < 2,
+       "Cannot set both Homogeneous Dirichlet and Dirichlet EB!!!");
 
     pp.query("plot_file", plot_file_name);
 
@@ -406,4 +429,3 @@ MyTest::initGrids ()
         domain.refine(ref_ratio);
     }
 }
-

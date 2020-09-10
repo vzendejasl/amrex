@@ -28,9 +28,10 @@ private:
     int max_grid_size = 64;
     amrex::Vector<int> is_periodic = amrex::Vector<int>(3,0);
     int eb_is_dirichlet = 0;
+    int eb_is_homog_dirichlet = 0;
     amrex::Vector<amrex::Real> prob_lo = amrex::Vector<amrex::Real>(3,0.0);
     amrex::Vector<amrex::Real> prob_hi = amrex::Vector<amrex::Real>(3,1.0);
-    
+
     std::string plot_file_name{"plot"};
 
     amrex::Vector<amrex::Real> scalars;

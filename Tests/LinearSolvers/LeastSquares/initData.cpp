@@ -54,7 +54,7 @@ MyTest::initData ()
             bcoef[ilev][idim].define(amrex::convert(grids[ilev],IntVect::TheDimensionVector(idim)),
                                      dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
         }
-        if (eb_is_dirichlet) {
+        if (eb_is_dirichlet or eb_is_homog_dirichlet) {
             bcoef_eb[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
             bcoef_eb[ilev].setVal(1.0);
         }
@@ -113,11 +113,11 @@ MyTest::initData ()
 #if (AMREX_SPACEDIM == 2)
                    Real H = poiseuille_1d_height;
                    Real t = (poiseuille_1d_rotation/180.)*M_PI;
-                   
+
                    Real a = std::tan(t);
                    Real b = -1.0;
                    Real c = poiseuille_1d_pt_on_top_wall[1] - std::tan(t)*poiseuille_1d_pt_on_top_wall[0];
-                     
+
 
                    Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
                    Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
@@ -176,9 +176,9 @@ MyTest::initData ()
                       Real a = std::sin(gamma);
                       Real b = -std::cos(alpha)*std::cos(gamma);
                       Real c = std::sin(alpha);
-                      Real d = -a*poiseuille_1d_pt_on_top_wall[0] 
+                      Real d = -a*poiseuille_1d_pt_on_top_wall[0]
                                -b*poiseuille_1d_pt_on_top_wall[1] - c*poiseuille_1d_pt_on_top_wall[2];
-                        
+
 
                       Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
                       Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
@@ -192,21 +192,21 @@ MyTest::initData ()
 
                       if(nfdir == 2) {
                          Real flow_norm_mag = std::sqrt(
-                                                std::cos(alpha)*std::cos(alpha)*std::cos(gamma)*std::cos(gamma) 
+                                                std::cos(alpha)*std::cos(alpha)*std::cos(gamma)*std::cos(gamma)
                                                 + std::sin(gamma)*std::sin(gamma));
                          flow_norm[0] = std::cos(alpha)*std::cos(gamma)/flow_norm_mag;
                          flow_norm[1] = std::sin(gamma)/flow_norm_mag;
                       }
                       else if(nfdir == 1) {
                          Real flow_norm_mag = std::sqrt(std::sin(alpha)*std::sin(alpha)
-                                              + std::sin(gamma)*std::sin(gamma)); 
+                                              + std::sin(gamma)*std::sin(gamma));
                          flow_norm[0] = -std::sin(alpha)/flow_norm_mag;
                          flow_norm[2] = std::sin(gamma)/flow_norm_mag;
-                         
+
                       }
                       else if(nfdir == 0) {
                          Real flow_norm_mag = std::sqrt(
-                                                std::cos(alpha)*std::cos(alpha)*std::cos(gamma)*std::cos(gamma) 
+                                                std::cos(alpha)*std::cos(alpha)*std::cos(gamma)*std::cos(gamma)
                                                 + std::sin(alpha)*std::sin(alpha));
                          flow_norm[2] = std::cos(alpha)*std::cos(gamma)/flow_norm_mag;
                          flow_norm[1] = std::sin(alpha)/flow_norm_mag;
@@ -321,7 +321,7 @@ MyTest::initData ()
                            fab_eb(i,j,k,2) = 0.0;
 
                            Real rxeb = (i+0.5+bcent(i,j,k,0)) * dx[0];
-                           d = rxeb-bot;   
+                           d = rxeb-bot;
                            fab_eb(i,j,k,fdir) = (H - 2*d) * dx[0] * norm(i,j,k,0);
                         }
 
@@ -341,7 +341,7 @@ MyTest::initData ()
                            fab_eb(i,j,k,2) = 0.0;
 
                            Real ryeb = (j+0.5+bcent(i,j,k,1)) * dx[1];
-                           d = ryeb-bot;   
+                           d = ryeb-bot;
                            fab_eb(i,j,k,fdir) = (H - 2*d) * dx[1] * norm(i,j,k,1);
                         }
                       }
@@ -360,7 +360,7 @@ MyTest::initData ()
                            fab_eb(i,j,k,2) = 0.0;
 
                            Real rzeb = (k+0.5+bcent(i,j,k,2)) * dx[2];
-                           d = rzeb-bot;   
+                           d = rzeb-bot;
                            fab_eb(i,j,k,fdir) = (H - 2*d) * dx[2] * norm(i,j,k,2);
                         }
                       }
