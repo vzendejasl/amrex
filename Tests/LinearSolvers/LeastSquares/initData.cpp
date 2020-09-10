@@ -102,6 +102,10 @@ MyTest::initData ()
                Array4<Real const> const& apy   = (factory[ilev]->getAreaFrac())[1]->const_array(mfi);
                Array4<Real const> const& norm  = (factory[ilev]->getBndryNormal()).array(mfi);
                Array4<Real const> const& bcent = (factory[ilev]->getBndryCent()).array(mfi);
+
+              const auto & dlo = geom[ilev].Domain().loVect();
+              const auto & dhi = geom[ilev].Domain().hiVect();
+
 #if (AMREX_SPACEDIM > 2)
                Array4<Real const> const& fcz   = (factory[ilev]->getFaceCent())[2]->const_array(mfi);
                Array4<Real const> const& apz   = (factory[ilev]->getAreaFrac())[2]->const_array(mfi);
@@ -121,6 +125,26 @@ MyTest::initData ()
 
                    Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
                    Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
+
+                   // if dirichlet, set the ghost cell values to corr. domain face values
+                   if(eb_is_dirichlet or eb_is_homog_dirichlet) {
+                      if (i < dlo[0] and not is_periodic[0]) {
+                         rx = dlo[0] * dx[0];
+                         ry = (j+0.5+fcx(i,j,k,0)) * dx[1];
+                      }
+                      if (i > dhi[0] and not is_periodic[0]) {
+                         rx = (dhi[0] + 1) * dx[0];
+                         ry = (j+0.5+fcx(i,j,k,0)) * dx[1];
+                      }
+                      if (j < dlo[1] and not is_periodic[1]) {
+                         rx = (i+0.5+fcy(i,j,k,0)) * dx[0];
+                         ry = dlo[1] * dx[1];
+                      }
+                      if (j > dhi[1] and not is_periodic[1]) {
+                         rx = (i+0.5+fcy(i,j,k,0)) * dx[0];
+                         ry = (dhi[1] + 1) * dx[1];
+                      }
+                   }
 
                    auto d = std::fabs(a*rx + b*ry + c)/std::sqrt(a*a + b*b);
 
