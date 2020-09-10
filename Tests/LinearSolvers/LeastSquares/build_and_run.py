@@ -14,9 +14,11 @@ ALL_TESTS = []
 if args.dim == 2:
    ALL_TESTS = glob.glob('inputs.2d.*')
    EXE = './main2d.gnu.TEST.MPI.ex'
+   MAKE_CMD = 'make DIM=2 -j10'
 elif args.dim == 3:
    ALL_TESTS = glob.glob('inputs.3d.*')
    EXE = './main3d.gnu.TEST.MPI.ex'
+   MAKE_CMD = 'make -j10'
 
 if args.clean:
    print('Clearing plot files and building clean')
@@ -24,7 +26,7 @@ if args.clean:
    os.system('make clean')
 
 print("Building the test executable")
-err = os.system('make -j10');
+err = os.system(MAKE_CMD);
 if not err == 0:
    sys.exit(1)
 
