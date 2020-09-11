@@ -411,6 +411,10 @@ Real grad_y_of_phi_on_centroids(int i,int j,int k,int n,
     return rhs(2);
 }
 
+
+
+
+
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
                                 Array4<Real const> const& phi,
@@ -467,6 +471,372 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
                     if (i == ii and j == jj)
                         Amatrix(a_ind+9,0) *= 2.0;
 #endif
+                }
+            }
+        }
+
+    // Columns 3 : [x*x  x*y  y*y]
+
+    for (int irow = 0; irow < 18; irow++)
+    {
+       Amatrix(irow,3) =  Amatrix(irow,1) * Amatrix(irow,1);
+       Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,2);
+       Amatrix(irow,5) =  Amatrix(irow,2) * Amatrix(irow,2);
+    }
+
+    // Make the RHS = A^T v
+    for (int irow = 0; irow < 6; irow++)
+    {
+        rhs(irow) = 0.;
+
+        for (int ii = i-1; ii <= i+1; ii++)
+            for (int jj = j-1; jj <= j+1; jj++)
+                if (!flag(ii,jj,k).isCovered())
+                {
+                    int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
+                    rhs(irow) += Amatrix(a_ind,irow) * phi(ii,jj,k,n);
+                    if (flag(ii,jj,k).isSingleValued() and is_eb_inhomog)
+                        rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
+                }
+    }
+
+    cholsol_for_eb(Amatrix, rhs);
+
+    Real dphidn = rhs(1)*nrmx + rhs(2)*nrmy;
+    return dphidn;
+}
+
+
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
+                                       Array4<Real const> const& phi,
+                                       Array4<Real const> const& phieb,
+                                       Array4<EBCellFlag const> const& flag,
+                                       Array4<Real const> const& ccent,
+                                       Array4<Real const> const& bcent,
+                                       Array4<Real const> const& apx,
+                                       Array4<Real const> const& apy,
+                                       Real& yloc_on_xface,
+                                       bool is_eb_dirichlet, bool is_eb_inhomog,
+                                       const bool edlo_x, const bool edhi_x,
+                                       const int domlo_x, const int domhi_x,
+                                       const bool edlo_y, const bool edhi_y,
+                                       const int domlo_y, const int domhi_y)
+{
+    Array2D<Real,0,17,0,5> Amatrix;
+    Array1D<Real,0, 5    > rhs;
+
+    // Order of column -- first  six are cell centroids: (i,j-1) (i,j) (i,j+1) (i-1,j-1) (i-1,j) (i-1,j+1)
+    // Order of column -- second six are   EB centroids: (i,j-1) (i,j) (i,j+1) (i-1,j-1) (i-1,j) (i-1,j+1)
+
+    for (int irow = 0; irow < 18; irow++)
+        for (int icol = 0; icol < 6; icol++)
+            Amatrix(irow,icol) =  0.0;
+
+    // Columns: [e x y x*x x*y y*y]
+    for (int ii = i-1; ii <= i+1; ii++) // Normal to face
+        for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
+        {
+            if (!flag(ii,jj,k).isCovered())
+            {
+                int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
+
+                // This shifts the x-offset by a normalized half-dx so that
+                // x=0 is the x-coordinate of the FACE centroid.
+                Real x_off = static_cast<Real>(ii-i) + 0.5;
+                Real y_off = static_cast<Real>(jj-j);
+
+                Real c_x_off = 0.;
+                if (edlo_x and ii < domlo_x)
+                  c_x_off =  0.5;
+                else if (edhi_x and ii > domhi_x)
+                  c_x_off = -0.5;
+
+                Real c_y_off = 0.;
+                if (edlo_y and jj < domlo_y)
+                  c_y_off =  0.5;
+                else if (edhi_y and jj > domhi_y)
+                  c_y_off = -0.5;
+
+                Amatrix(a_ind,0) = 1.0;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) + c_x_off;
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) - yloc_on_xface + c_y_off;
+                Amatrix(a_ind,3) = Amatrix(a_ind,1) * Amatrix(a_ind,1);
+                Amatrix(a_ind,4) = Amatrix(a_ind,1) * Amatrix(a_ind,2);
+                Amatrix(a_ind,5) = Amatrix(a_ind,2) * Amatrix(a_ind,2);
+
+                // Add in information about the location of the EB. Exclude
+                // EBs that are outside the domain.
+                if (flag(ii,jj,k).isSingleValued() and
+                    domlo_x <= ii and ii <= domhi_x and
+                    domlo_y <= jj and jj <= domhi_y)
+                {
+                    int a_ind_eb  = a_ind + 6;
+                    if (is_eb_dirichlet) {
+                        Amatrix(a_ind_eb,0) = 1.0;
+                        Amatrix(a_ind_eb,1) = x_off + bcent(ii,jj,k,0);
+                        Amatrix(a_ind_eb,2) = y_off + bcent(ii,jj,k,1) - yloc_on_xface;
+                        Amatrix(a_ind_eb,3) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,1);
+                        Amatrix(a_ind_eb,4) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,2);
+                        Amatrix(a_ind_eb,5) = Amatrix(a_ind_eb,2) * Amatrix(a_ind_eb,2);
+                    } else { // Neumann bc's on EB face
+                        Real dapx = apx(ii,jj,k)-apx(ii+1,jj,k);
+                        Real dapy = apy(ii,jj,k)-apy(ii,jj+1,k);;
+                        Real anorm = std::hypot(dapx,dapy);
+                        Real norm_x = dapx / anorm;
+                        Real norm_y = dapy / anorm;
+                        Amatrix(a_ind_eb,0) = 0.0;
+                        Amatrix(a_ind_eb,1) = norm_x;
+                        Amatrix(a_ind_eb,2) = norm_y;
+                        Amatrix(a_ind_eb,3) = 2.0*norm_x*(x_off + bcent(ii,jj,k,1));
+                        Amatrix(a_ind_eb,4) = norm_x*(y_off + bcent(ii,jj,k,1) - yloc_on_xface)
+                                             +norm_y*(x_off + bcent(ii,jj,k,0));
+                        Amatrix(a_ind_eb,5) = 2.0*norm_y*(y_off + bcent(ii,jj,k,1) - yloc_on_xface);
+                    }
+                }
+            }
+        }
+
+    // Make the RHS = A^T v
+    for (int irow = 0; irow < 6; irow++)
+    {
+        rhs(irow) = 0.; // Only non-zero when inhomogeneous Dirichlet
+
+        for (int ii = i-1; ii <= i+1; ii++)  // Normal to face
+            for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
+            {
+                if (!flag(ii,jj,k).isCovered())
+                {
+                    int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
+                    rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
+
+                    if (flag(ii,jj,k).isSingleValued() &&
+                        is_eb_dirichlet && is_eb_inhomog)
+                            rhs(irow) += Amatrix(a_ind+6,irow)*phieb(ii,jj,k,n);
+                }
+            }
+    }
+
+    cholsol_for_eb(Amatrix, rhs);
+
+    return rhs(1);
+}
+
+
+
+
+
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
+                                       Array4<Real const> const& phi,
+                                       Array4<Real const> const& phieb,
+                                       Array4<EBCellFlag const> const& flag,
+                                       Array4<Real const> const& ccent,
+                                       Array4<Real const> const& bcent,
+                                       Array4<Real const> const& apx,
+                                       Array4<Real const> const& apy,
+                                       Real& xloc_on_yface,
+                                       bool is_eb_dirichlet, bool is_eb_inhomog,
+                                       const bool edlo_x, const bool edhi_x,
+                                       const int domlo_x, const int domhi_x,
+                                       const bool edlo_y, const bool edhi_y,
+                                       const int domlo_y, const int domhi_y)
+{
+
+    Array2D<Real,0,17,0,5> Amatrix;
+    Array1D<Real,0, 5    > rhs;
+
+    // Order of column -- first  six are cell centroids: (i-1,j) (i,j) (i+1,j) (i-1,j-1) (i,j-1) (i+1,j-1)
+    // Order of column -- second six are   EB centroids: (i-1,j) (i,j) (i+1,j) (i-1,j-1) (i,j-1) (i+1,j-1)
+
+    for (int irow = 0; irow < 18; irow++)
+        for (int icol = 0; icol < 6; icol++)
+            Amatrix(irow,icol) =  0.0;
+
+    // Columns: [e x y x*x x*y y*y]
+    for (int jj = j-1; jj <= j+1; jj++) // Normal to face
+        for (int ii = i-1; ii <= i+1; ii++)  // Tangential to face
+        {
+            if (!flag(ii,jj,k).isCovered())
+            {
+                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1));
+
+                Real x_off = static_cast<Real>(ii-i);
+                Real y_off = static_cast<Real>(jj-j) + 0.5;
+
+                Real c_x_off(0.);
+                if (edlo_x and ii < domlo_x)
+                  c_x_off =  0.5;
+                else if (edhi_x and ii > domhi_x)
+                  c_x_off = -0.5;
+
+                Real c_y_off(0.);
+                if (edlo_y and jj < domlo_y)
+                  c_y_off =  0.5;
+                else if (edhi_y and jj > domhi_y)
+                  c_y_off = -0.5;
+
+                Amatrix(a_ind,0) = 1.0;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) - xloc_on_yface + c_x_off;
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) + c_y_off;
+                Amatrix(a_ind,3) = Amatrix(a_ind,1) * Amatrix(a_ind,1);
+                Amatrix(a_ind,4) = Amatrix(a_ind,1) * Amatrix(a_ind,2);
+                Amatrix(a_ind,5) = Amatrix(a_ind,2) * Amatrix(a_ind,2);
+
+                if (flag(ii,jj,k).isSingleValued() and
+                    domlo_x <= ii and ii <= domhi_x and
+                    domlo_y <= jj and jj <= domhi_y)
+                {
+
+                    int a_ind_eb  = a_ind + 6;
+
+                    if (is_eb_dirichlet) {
+                        Amatrix(a_ind_eb,0) = 1.0;
+                        Amatrix(a_ind_eb,1) = x_off + bcent(ii,jj,k,0) - xloc_on_yface;
+                        Amatrix(a_ind_eb,2) = y_off + bcent(ii,jj,k,1);
+                        Amatrix(a_ind_eb,3) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,1);
+                        Amatrix(a_ind_eb,4) = Amatrix(a_ind_eb,1) * Amatrix(a_ind_eb,2);
+                        Amatrix(a_ind_eb,5) = Amatrix(a_ind_eb,2) * Amatrix(a_ind_eb,2);
+                    } else { // Neumann bc's on EB face
+                        Real dapx = apx(ii,jj,k)-apx(ii+1,jj,k);
+                        Real dapy = apy(ii,jj,k)-apy(ii,jj+1,k);;
+                        Real anorm = std::hypot(dapx,dapy);
+                        Real norm_x = dapx / anorm;
+                        Real norm_y = dapy / anorm;
+                        Amatrix(a_ind_eb,0) = 0.0;
+                        Amatrix(a_ind_eb,1) = norm_x;
+                        Amatrix(a_ind_eb,2) = norm_y;
+                        Amatrix(a_ind_eb,3) = 2.0*norm_x*(x_off + bcent(ii,jj,k,0) - xloc_on_yface);
+                        Amatrix(a_ind_eb,4) = norm_x*(y_off + bcent(ii,jj,k,1))
+                                             +norm_y*(x_off + bcent(ii,jj,k,0) - xloc_on_yface);
+                        Amatrix(a_ind_eb,5) = 2.0*norm_y*(y_off + bcent(ii,jj,k,1));
+                    }
+                }
+            }
+        }
+
+#if 0
+    //////////////////////////////////////////////////////////////////////////
+    if(i==8 and j==0){
+
+      Array1D<Real,0,17> phi_vec;
+
+      for (int irow = 0; irow < 18; irow++)
+        phi_vec(irow) = 0.;
+
+      for (int jj = j-1; jj <= j+1; jj++) // Normal to face
+        for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
+          if (!flag(ii,jj,k).isCovered())
+          {
+            int irow  = (ii-(i-1)) + 3*(jj-(j-1));
+            phi_vec(irow) = phi(ii,jj,k,n);
+
+            if (flag(ii,jj,k).isSingleValued() && is_eb_dirichlet && is_eb_inhomog)
+              phi_vec(irow+6) = phieb(ii,jj,k,n);
+          }
+
+
+
+      amrex::Print() << "\n\n\n Matrix data: \n";
+      for (int irow = 0; irow < 12; irow++){
+        amrex::Print() << "row  " << irow << "  A:, ";
+        for (int icol = 0; icol < 6; icol++){
+          amrex::Print() << Amatrix(irow,icol) << ",  ";
+        }
+        amrex::Print() << "  phi:, " << phi_vec(irow) << "\n";
+      }
+      amrex::Print() << "\n\n\n";
+    }
+    //////////////////////////////////////////////////////////////////////////
+#endif
+
+    // Make the RHS = A^T v
+    for (int irow = 0; irow < 6; irow++)
+    {
+        rhs(irow) = 0.; // Only non-zero when inhomogeneous Dirichlet
+
+        for (int jj = j-1; jj <= j+1; jj++) // Normal to face
+            for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
+                if (!flag(ii,jj,k).isCovered())
+                {
+                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1));
+                    rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
+
+                    if (flag(ii,jj,k).isSingleValued() &&
+                        is_eb_dirichlet && is_eb_inhomog)
+                            rhs(irow) += Amatrix(a_ind+6,irow)*phieb(ii,jj,k,n);
+                }
+    }
+
+    cholsol_for_eb(Amatrix, rhs);
+
+    return rhs(2);
+}
+
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
+                                        Array4<Real const> const& phi,
+                                        Array4<Real const> const& phieb,
+                                        Array4<EBCellFlag const> const& flag,
+                                        Array4<Real const> const& ccent,
+                                        Array4<Real const> const& bcent,
+                                        Real& nrmx, Real& nrmy,
+                                        bool is_eb_inhomog,
+                                        const bool edlo_x, const bool edhi_x,
+                                        const int domlo_x, const int domhi_x,
+                                        const bool edlo_y, const bool edhi_y,
+                                        const int domlo_y, const int domhi_y)
+
+{
+    Array2D<Real,0,17,0,5> Amatrix;
+    Array1D<Real,0, 5    > rhs;
+
+    // Order of column -- first 9 are cell centroids, next 9 are EB centroids
+
+    for (int irow = 0; irow < 18; irow++)
+        for (int icol = 0; icol < 6; icol++)
+            Amatrix(irow,icol) =  0.0;
+
+    //  Column 0-2: [e x y]
+    for (int ii = i-1; ii <= i+1; ii++)
+        for (int jj = j-1; jj <= j+1; jj++)
+        {
+            if (!flag(ii,jj,k).isCovered())
+            {
+                int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
+
+                Real x_off = static_cast<Real>(ii-i);
+                Real y_off = static_cast<Real>(jj-j);
+
+                Real c_x_off = 0.;
+                if (edlo_x and ii < domlo_x)
+                  c_x_off =  0.5;
+                else if (edhi_x and ii > domhi_x)
+                  c_x_off = -0.5;
+
+                Real c_y_off = 0.;
+                if (edlo_y and jj < domlo_y)
+                  c_y_off =  0.5;
+                else if (edhi_y and jj > domhi_y)
+                  c_y_off = -0.5;
+
+                if (flag(i,j,k).isConnected((ii-i),(jj-j),0))
+                {
+                   Amatrix(a_ind,0) = 1.0;
+                   Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) + c_x_off - bcent(i,j,k,0);
+                   Amatrix(a_ind,2) = y_off + ccent(ii,jj,k,1) + c_y_off - bcent(i,j,k,1);
+                }
+
+                // Include information from the EB unless it is outside the domain
+                if (flag(i,j,k).isConnected((ii-i),(jj-j),0) and flag(ii,jj,k).isSingleValued() and
+                    domlo_x <= ii and ii <= domhi_x and domlo_y <= jj and jj <= domhi_y)
+                {
+                    Amatrix(a_ind+9,0) = 1.0;
+                    Amatrix(a_ind+9,1) = x_off + bcent(ii,jj,k,0) - bcent(i,j,k,0);
+                    Amatrix(a_ind+9,2) = y_off + bcent(ii,jj,k,1) - bcent(i,j,k,1);
                 }
             }
         }

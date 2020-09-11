@@ -28,6 +28,19 @@ MyTest::initData ()
     bcoef.resize(nlevels);
     bcoef_eb.resize(nlevels);
 
+
+    m_bcrec.resize(1);
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+      if (geom[0].isPeriodic(dir)) {
+        m_bcrec[0].setLo(dir, BCType::int_dir);
+        m_bcrec[0].setHi(dir, BCType::int_dir);
+      } else {
+        m_bcrec[0].setLo(dir, BCType::ext_dir);
+        m_bcrec[0].setHi(dir, BCType::ext_dir);
+      }
+    }
+
+
     for (int ilev = 0; ilev < nlevels; ++ilev)
     {
         dmap[ilev].define(grids[ilev]);

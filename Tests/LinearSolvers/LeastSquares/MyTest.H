@@ -36,6 +36,8 @@ private:
 
     amrex::Vector<amrex::Real> scalars;
 
+    amrex::Vector<amrex::BCRec> m_bcrec;
+
     // For MLMG solver
     int verbose = 2;
     int bottom_verbose = 2;
@@ -80,6 +82,9 @@ private:
     amrex::Vector<amrex::Array<amrex::MultiFab,AMREX_SPACEDIM> > bcoef;
     amrex::Vector<amrex::MultiFab> bcoef_eb;
     amrex::Vector<amrex::MultiFab> lap_analytic;
+
+    amrex::Vector<amrex::BCRec> const& get_bcrec () const noexcept { return m_bcrec; }
+
 };
 
 #endif
