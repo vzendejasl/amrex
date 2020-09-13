@@ -16,6 +16,8 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
                         Array4<Real const> const& ccent, Array4<Real const> const& ba,
                         Array4<Real const> const& bcent, Array4<Real const> const& beb,
                         Array4<Real const> const& phieb,
+                        Array4<Real const> const& bcval_xlo, Array4<Real const> const& bcval_ylo,
+                        Array4<Real const> const& bcval_xhi, Array4<Real const> const& bcval_yhi,
                         const int& domlo_x,   const int& domlo_y,
                         const int& domhi_x,   const int& domhi_y,
                         const bool& on_x_face, const bool& on_y_face,
@@ -37,9 +39,8 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
             y(i,j,k,n) = 0.0;
         }
         else if (flag(i,j,k).isRegular() and (phi_on_center or
-                 (flag(i-1,j  ,k).isRegular() and flag(i+1,j  ,k).isRegular() and
-                  flag(i  ,j-1,k).isRegular() and flag(i  ,j+1,k).isRegular()) ))
-        //else if (flag(i,j,k).isRegular())
+                (flag(i-1,j  ,k).isRegular() and flag(i+1,j  ,k).isRegular() and
+                 flag(i  ,j-1,k).isRegular() and flag(i  ,j+1,k).isRegular()) ))
         {
             y(i,j,k,n) = alpha*a(i,j,k)*x(i,j,k,n)
                 - dhx * (bX(i+1,j,k,n)*(x(i+1,j,k,n) - x(i  ,j,k,n))
@@ -69,7 +70,8 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
                    fxm = bX(i,j,k,n) * ( (1.0-fracy)*(x(i, j,k,n)-x(i-1, j,k,n))
                                            + fracy  *(x(i,jj,k,n)-x(i-1,jj,k,n)) );
             } else if ( phi_on_centroid and
-                       (apxm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0) ) {
+                       (apxm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0) ) 
+            {
                 Real yloc_on_xface = fcx(i,j,k);
 
                 if(needs_bdry_stencil) {
