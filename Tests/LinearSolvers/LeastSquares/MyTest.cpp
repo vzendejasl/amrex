@@ -17,21 +17,6 @@
 
 using namespace amrex;
 
-namespace {
-  std::pair<bool,bool> has_extdir_or_ho (BCRec const* bcrec, int ncomp, int dir)
-  {
-    std::pair<bool,bool> r{false,false};
-    for (int n = 0; n < ncomp; ++n) {
-      r.first = r.first
-        or (bcrec[n].lo(dir) == BCType::ext_dir)
-        or (bcrec[n].lo(dir) == BCType::hoextrap);
-      r.second = r.second
-        or (bcrec[n].hi(dir) == BCType::ext_dir)
-        or (bcrec[n].hi(dir) == BCType::hoextrap);
-    }
-    return r;
-  }
-}
 
 MyTest::MyTest ()
 {
@@ -65,16 +50,23 @@ MyTest::compute_gradient ()
     const int domhi_z = domain_box.bigEnd(2);
 #endif
 
+    const bool on_x_face = !(geom[0].isPeriodic(0));
+    const bool on_y_face = !(geom[0].isPeriodic(1));
+#if (AMREX_SPACEDIM == 3)
+    const bool on_z_face = !(geom[0].isPeriodic(2));
+#endif
+
+
     for (MFIter mfi(rhs[ilev]); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.fabbox();
-        Array4<Real> const& phi_arr = phi[ilev].array(mfi);
-        Array4<Real> const& phi_eb_arr = phieb[ilev].array(mfi);
-        Array4<Real> const& grad_x_arr = grad_x[ilev].array(mfi);
-        Array4<Real> const& grad_y_arr = grad_y[ilev].array(mfi);
-        Array4<Real> const& grad_z_arr = grad_z[ilev].array(mfi);
-        Array4<Real> const& grad_eb_arr = grad_eb[ilev].array(mfi);
-        Array4<Real> const& ccentr_arr = ccentr[ilev].array(mfi);
+        Array4<const Real> const& phi_arr     = phi[ilev].array(mfi);
+        Array4<const Real> const& phi_eb_arr  = phieb[ilev].array(mfi);
+        Array4<      Real> const& grad_x_arr  = grad_x[ilev].array(mfi);
+        Array4<      Real> const& grad_y_arr  = grad_y[ilev].array(mfi);
+        Array4<      Real> const& grad_z_arr  = grad_z[ilev].array(mfi);
+        Array4<      Real> const& grad_eb_arr = grad_eb[ilev].array(mfi);
+        Array4<      Real> const& ccentr_arr  = ccentr[ilev].array(mfi);
 
         Array4<Real const> const& fcx   = (factory[ilev]->getFaceCent())[0]->const_array(mfi);
         Array4<Real const> const& fcy   = (factory[ilev]->getFaceCent())[1]->const_array(mfi);
@@ -96,31 +88,6 @@ MyTest::compute_gradient ()
 
         const auto dx = geom[ilev].CellSizeArray();
 
-        // At an ext_dir or hoextrap boundary,
-        //    the boundary value is on the face, not cell center.
-        auto x_extdir_lohi = has_extdir_or_ho( m_bcrec.data(), ncomp, static_cast<int>(Direction::x));
-        const bool edlo_x = x_extdir_lohi.first;
-        const bool edhi_x = x_extdir_lohi.second;
-
-        auto y_extdir_lohi = has_extdir_or_ho( m_bcrec.data(), ncomp, static_cast<int>(Direction::y));
-        const bool edlo_y = y_extdir_lohi.first;
-        const bool edhi_y = y_extdir_lohi.second;
-
-        amrex::Print() << "x_has_extdir   lo: " << edlo_x << "    hi: " << edhi_x << std::endl;
-        amrex::Print() << "y_has_extdir   lo: " << edlo_y << "    hi: " << edhi_y << std::endl;
-
-
-#if (AMREX_SPACEDIM == 3)
-        auto z_extdir_lohi = has_extdir_or_ho( m_bcrec.data(), ncomp, static_cast<int>(Direction::y));
-        const bool edlo_z = z_extdir_lohi.first;
-        const bool edhi_z = z_extdir_lohi.second;
-#endif
-
-        amrex::Print() << "edlo_x " << edlo_x << "  " << domlo_x << std::endl;
-        amrex::Print() << "edhi_x " << edhi_x << "  " << domhi_x << std::endl;
-        amrex::Print() << "edlo_y " << edlo_y << "  " << domlo_y << std::endl;
-        amrex::Print() << "edhi_y " << edhi_y << "  " << domhi_y << std::endl;
-
         amrex::ParallelFor(bx, ncomp,
         [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
         {
@@ -140,28 +107,34 @@ MyTest::compute_gradient ()
             }
 
             // First get EB-aware slope that doesn't know about extdir
-            bool needs_bdry_stencil = (edlo_x and i <= domlo_x) or (edhi_x and i >= domhi_x) or
-                                      (edlo_y and j <= domlo_y) or (edhi_y and j >= domhi_y);
+            bool needs_bdry_stencil = (on_x_face and (i <= domlo_x or i >= domhi_x)) or
+                                      (on_y_face and (j <= domlo_y or j >= domhi_y));
 
 #if (AMREX_SPACEDIM == 2)
             if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
 
               if(needs_bdry_stencil){
 
+
                 grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
                   grad_x_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
                                                     flag, ccent, bcent, apx, apy,
                                                     yloc_on_xface, is_eb_dirichlet, is_eb_inhomog,
-                                                    edlo_x, edhi_x, domlo_x, domhi_x,
-                                                    edlo_y, edhi_y, domlo_y, domhi_y);
+                                                    on_x_face, domlo_x, domhi_x,
+                                                    on_y_face, domlo_y, domhi_y);
+
+                if(i==3 and j==0 and n==0)
+                  amrex::Print() << "\n\n Calculate grad_x for (3,0):"
+                                 << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
+                                 << "    grad_x " << grad_x_arr(i,j,k,n) << std::endl;
 
 
                 grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
                   grad_y_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
                                                     flag, ccent, bcent, apx, apy,
                                                     xloc_on_yface, is_eb_dirichlet, is_eb_inhomog,
-                                                    edlo_x, edhi_x, domlo_x, domhi_x,
-                                                    edlo_y, edhi_y, domlo_y, domhi_y);
+                                                    on_y_face, domlo_x, domhi_x,
+                                                    on_y_face, domlo_y, domhi_y);
 
 
               } else {
@@ -184,11 +157,11 @@ MyTest::compute_gradient ()
             if (flag(i,j,k).isSingleValued())
               grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
                         flag, ccent, bcent, nx, ny, is_eb_inhomog,
-                        edlo_x, edhi_x, domlo_x, domhi_x, edlo_y, edhi_y, domlo_y, domhi_y);
+                        on_x_face, domlo_x, domhi_x, on_y_face, domlo_y, domhi_y);
 
 #else
             needs_bdry_stencil = needs_bdry_stencil or
-              (edlo_z and k <= domlo_z) or (edhi_z and k >= domhi_z);
+              (on_z_face and (k <= domlo_z or k >= domhi_z));
 
             Real zloc_on_xface = fcx(i,j,k,1);
             Real zloc_on_yface = fcy(i,j,k,1);

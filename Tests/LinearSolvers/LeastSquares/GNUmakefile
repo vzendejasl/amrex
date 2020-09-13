@@ -1,4 +1,4 @@
-DEBUG = FALSE
+DEBUG = TRUE
 TEST = TRUE
 USE_ASSERTION = TRUE
 
@@ -13,7 +13,7 @@ USE_PETSC = FALSE
 COMP = gnu
 
 # Switch if testing 2D
-DIM = 3
+DIM = 2
 
 AMREX_HOME = ../../..
 

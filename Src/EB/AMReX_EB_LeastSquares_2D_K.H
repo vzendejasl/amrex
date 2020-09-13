@@ -519,10 +519,8 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                        Array4<Real const> const& apy,
                                        Real& yloc_on_xface,
                                        bool is_eb_dirichlet, bool is_eb_inhomog,
-                                       const bool edlo_x, const bool edhi_x,
-                                       const int domlo_x, const int domhi_x,
-                                       const bool edlo_y, const bool edhi_y,
-                                       const int domlo_y, const int domhi_y)
+                                       const bool on_x_face, const int domlo_x, const int domhi_x,
+                                       const bool on_y_face, const int domlo_y, const int domhi_y)
 {
     Array2D<Real,0,17,0,5> Amatrix;
     Array1D<Real,0, 5    > rhs;
@@ -534,13 +532,26 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
         for (int icol = 0; icol < 6; icol++)
             Amatrix(irow,icol) =  0.0;
 
+    const int im = (i > domhi_x) ? 2 : 1;
+    const int ip = 2 - im;
+
     // Columns: [e x y x*x x*y y*y]
-    for (int ii = i-1; ii <= i+1; ii++) // Normal to face
+    for (int ii = i-im; ii <= i+ip; ii++) // Normal to face
         for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
         {
+
+            // Don't include corner cells. Could make this even more strict
+            // by removing the on_?_face restrictions.
+            if (((on_x_face and ii < domlo_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj > domhi_y))){
+              continue;
+            }
+
             if (!flag(ii,jj,k).isCovered())
             {
-                int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
+
+                int a_ind  = (jj-(j-1)) + 3*(ii-(i-im));
+                AMREX_ASSERT(0<= a_ind and a_ind <= 8);
 
                 // This shifts the x-offset by a normalized half-dx so that
                 // x=0 is the x-coordinate of the FACE centroid.
@@ -548,16 +559,17 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                 Real y_off = static_cast<Real>(jj-j);
 
                 Real c_x_off = 0.;
-                if (edlo_x and ii < domlo_x)
+                if (on_x_face and ii < domlo_x)
                   c_x_off =  0.5;
-                else if (edhi_x and ii > domhi_x)
+                else if (on_x_face and ii > domhi_x)
                   c_x_off = -0.5;
 
                 Real c_y_off = 0.;
-                if (edlo_y and jj < domlo_y)
+                if (on_y_face and jj < domlo_y)
                   c_y_off =  0.5;
-                else if (edhi_y and jj > domhi_y)
+                else if (on_y_face and jj > domhi_y)
                   c_y_off = -0.5;
+
 
                 Amatrix(a_ind,0) = 1.0;
                 Amatrix(a_ind,1) = x_off + ccent(ii,jj,k,0) + c_x_off;
@@ -572,7 +584,9 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                     domlo_x <= ii and ii <= domhi_x and
                     domlo_y <= jj and jj <= domhi_y)
                 {
-                    int a_ind_eb  = a_ind + 6;
+                    int a_ind_eb  = a_ind + 9;
+                    AMREX_ASSERT(9<= a_ind_eb and a_ind_eb <= 17);
+
                     if (is_eb_dirichlet) {
                         Amatrix(a_ind_eb,0) = 1.0;
                         Amatrix(a_ind_eb,1) = x_off + bcent(ii,jj,k,0);
@@ -598,25 +612,84 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
             }
         }
 
+#if 1
+    //////////////////////////////////////////////////////////////////////////
+    if(i==3 and j==0 and n==0){
+      amrex::Print() << "\n\n\n Matrix data: \n";
+
+      Array1D<Real,0,17> phi_vec;
+
+      for (int irow = 0; irow < 18; irow++)
+        phi_vec(irow) = 0.;
+
+
+      for (int ii = i-im; ii <= i+ip; ii++) // Normal to face
+        for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
+          if (!flag(ii,jj,k).isCovered())
+          {
+            int irow   = (jj-(j-1)) + 3*(ii-(i-im)) ;
+            AMREX_ASSERT(0<=irow and irow <9);
+            phi_vec(irow) = phi(ii,jj,k,n);
+
+            amrex::Print() << "row: " << irow << "  ii/jj " << ii << "  " << jj << "   phi: " << phi(ii,jj,k,n) << std::endl;
+
+            if (flag(ii,jj,k).isSingleValued() && is_eb_dirichlet && is_eb_inhomog){
+              int irow_eb  = irow + 9;
+              AMREX_ASSERT(9<=irow_eb and irow_eb < 18);
+              phi_vec(irow_eb) = phieb(ii,jj,k,n);
+            }
+
+          }
+
+      // for (int irow = 0; irow < 18; irow++){
+      //   amrex::Print() << irow << ",  " ;
+      //   for (int icol = 0; icol < 6; icol++){
+      //     amrex::Print() << Amatrix(irow,icol) << ",  ";
+      //   }
+      //   amrex::Print() << ", " << phi_vec(irow) << "\n";
+      // }
+
+      amrex::Print() << "\n\n\n";
+    }
+    //////////////////////////////////////////////////////////////////////////
+#endif
+
     // Make the RHS = A^T v
+
+
+    // if(i==3 and j==0 and n==0)
+    //   amrex::Print() << "\n\n\n";
+
+
     for (int irow = 0; irow < 6; irow++)
     {
         rhs(irow) = 0.; // Only non-zero when inhomogeneous Dirichlet
 
-        for (int ii = i-1; ii <= i+1; ii++)  // Normal to face
+        for (int ii = i-im; ii <= i+ip; ii++)  // Normal to face
             for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
             {
                 if (!flag(ii,jj,k).isCovered())
                 {
-                    int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
+                    int a_ind  = (jj-(j-1)) + 3*(ii-(i-im));
+                    AMREX_ASSERT(0<=a_ind and a_ind <9);
                     rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
 
                     if (flag(ii,jj,k).isSingleValued() &&
                         is_eb_dirichlet && is_eb_inhomog)
-                            rhs(irow) += Amatrix(a_ind+6,irow)*phieb(ii,jj,k,n);
+                            rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
                 }
             }
+
+        if(i==3 and j==0 and n==0){
+          // amrex::Print() << irow << "  " << rhs(irow) << std::endl;
+        }
+
     }
+
+
+    // if(i==3 and j==0 and n==0)
+    //   amrex::Print() << "\n\n\n";
+
 
     cholsol_for_eb(Amatrix, rhs);
 
@@ -639,10 +712,8 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                        Array4<Real const> const& apy,
                                        Real& xloc_on_yface,
                                        bool is_eb_dirichlet, bool is_eb_inhomog,
-                                       const bool edlo_x, const bool edhi_x,
-                                       const int domlo_x, const int domhi_x,
-                                       const bool edlo_y, const bool edhi_y,
-                                       const int domlo_y, const int domhi_y)
+                                       const bool on_x_face, const int domlo_x, const int domhi_x,
+                                       const bool on_y_face, const int domlo_y, const int domhi_y)
 {
 
     Array2D<Real,0,17,0,5> Amatrix;
@@ -655,27 +726,39 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
         for (int icol = 0; icol < 6; icol++)
             Amatrix(irow,icol) =  0.0;
 
+    const int jm = (j > domhi_y) ? 2 : 1;
+    const int jp = 2 - jm;
+
     // Columns: [e x y x*x x*y y*y]
-    for (int jj = j-1; jj <= j+1; jj++) // Normal to face
+    for (int jj = j-jm; jj <= j+jp; jj++) // Normal to face
         for (int ii = i-1; ii <= i+1; ii++)  // Tangential to face
         {
+
+            // Don't include corner cells.
+            if (((on_x_face and ii < domlo_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj > domhi_y))){
+              continue;
+            }
+
+
             if (!flag(ii,jj,k).isCovered())
             {
-                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1));
+                int a_ind  = (ii-(i-1)) + 3*(jj-(j-jm));
+                AMREX_ASSERT(0<= a_ind and a_ind <= 8);
 
                 Real x_off = static_cast<Real>(ii-i);
                 Real y_off = static_cast<Real>(jj-j) + 0.5;
 
                 Real c_x_off(0.);
-                if (edlo_x and ii < domlo_x)
+                if (on_x_face and ii < domlo_x)
                   c_x_off =  0.5;
-                else if (edhi_x and ii > domhi_x)
+                else if (on_x_face and ii > domhi_x)
                   c_x_off = -0.5;
 
                 Real c_y_off(0.);
-                if (edlo_y and jj < domlo_y)
+                if (on_y_face and jj < domlo_y)
                   c_y_off =  0.5;
-                else if (edhi_y and jj > domhi_y)
+                else if (on_y_face and jj > domhi_y)
                   c_y_off = -0.5;
 
                 Amatrix(a_ind,0) = 1.0;
@@ -690,7 +773,8 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                     domlo_y <= jj and jj <= domhi_y)
                 {
 
-                    int a_ind_eb  = a_ind + 6;
+                    int a_ind_eb  = a_ind + 9;
+                    AMREX_ASSERT(9<= a_ind_eb and a_ind_eb <= 17);
 
                     if (is_eb_dirichlet) {
                         Amatrix(a_ind_eb,0) = 1.0;
@@ -717,6 +801,7 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
             }
         }
 
+
 #if 0
     //////////////////////////////////////////////////////////////////////////
     if(i==8 and j==0){
@@ -726,11 +811,11 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
       for (int irow = 0; irow < 18; irow++)
         phi_vec(irow) = 0.;
 
-      for (int jj = j-1; jj <= j+1; jj++) // Normal to face
+      for (int jj = j-jm; jj <= j+jp; jj++) // Normal to face
         for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
           if (!flag(ii,jj,k).isCovered())
           {
-            int irow  = (ii-(i-1)) + 3*(jj-(j-1));
+            int irow  = (ii-(i-1)) + 3*(jj-(j-jm));
             phi_vec(irow) = phi(ii,jj,k,n);
 
             if (flag(ii,jj,k).isSingleValued() && is_eb_dirichlet && is_eb_inhomog)
@@ -740,7 +825,7 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
 
 
       amrex::Print() << "\n\n\n Matrix data: \n";
-      for (int irow = 0; irow < 12; irow++){
+      for (int irow = 0; irow < 18; irow++){
         amrex::Print() << "row  " << irow << "  A:, ";
         for (int icol = 0; icol < 6; icol++){
           amrex::Print() << Amatrix(irow,icol) << ",  ";
@@ -757,17 +842,18 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
     {
         rhs(irow) = 0.; // Only non-zero when inhomogeneous Dirichlet
 
-        for (int jj = j-1; jj <= j+1; jj++) // Normal to face
+        for (int jj = j-jm; jj <= j+jp; jj++) // Normal to face
             for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
                 if (!flag(ii,jj,k).isCovered())
                 {
-                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1));
+                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-jm));
                     rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
 
                     if (flag(ii,jj,k).isSingleValued() &&
                         is_eb_dirichlet && is_eb_inhomog)
-                            rhs(irow) += Amatrix(a_ind+6,irow)*phieb(ii,jj,k,n);
+                            rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
                 }
+
     }
 
     cholsol_for_eb(Amatrix, rhs);
@@ -785,10 +871,8 @@ Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                         Array4<Real const> const& bcent,
                                         Real& nrmx, Real& nrmy,
                                         bool is_eb_inhomog,
-                                        const bool edlo_x, const bool edhi_x,
-                                        const int domlo_x, const int domhi_x,
-                                        const bool edlo_y, const bool edhi_y,
-                                        const int domlo_y, const int domhi_y)
+                                        const bool on_x_face, const int domlo_x, const int domhi_x,
+                                        const bool on_y_face, const int domlo_y, const int domhi_y)
 
 {
     Array2D<Real,0,17,0,5> Amatrix;
@@ -804,6 +888,16 @@ Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
     for (int ii = i-1; ii <= i+1; ii++)
         for (int jj = j-1; jj <= j+1; jj++)
         {
+
+            // This is likely overkill for EB grads.
+            // Don't include corner cells. Could make this even more strict
+            // by removing the on_?_face restrictions.
+            if (((on_x_face and ii < domlo_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj > domhi_y))){
+              continue;
+            }
+
+
             if (!flag(ii,jj,k).isCovered())
             {
                 int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
@@ -812,15 +906,15 @@ Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                 Real y_off = static_cast<Real>(jj-j);
 
                 Real c_x_off = 0.;
-                if (edlo_x and ii < domlo_x)
+                if (on_x_face and ii < domlo_x)
                   c_x_off =  0.5;
-                else if (edhi_x and ii > domhi_x)
+                else if (on_x_face and ii > domhi_x)
                   c_x_off = -0.5;
 
                 Real c_y_off = 0.;
-                if (edlo_y and jj < domlo_y)
+                if (on_y_face and jj < domlo_y)
                   c_y_off =  0.5;
-                else if (edhi_y and jj > domhi_y)
+                else if (on_y_face and jj > domhi_y)
                   c_y_off = -0.5;
 
                 if (flag(i,j,k).isConnected((ii-i),(jj-j),0))

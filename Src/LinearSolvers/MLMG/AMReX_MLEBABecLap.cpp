@@ -1,4 +1,3 @@
-
 #include <AMReX_MLEBABecLap.H>
 #include <AMReX_MLABecLaplacian.H>
 #include <AMReX_MultiFabUtil.H>
@@ -95,7 +94,7 @@ MLEBABecLap::define (const Vector<Geometry>& a_geom,
                                                1, 0, 0, 1);
         }
     }
-   
+
     // Default to cell center; can be re-set to cell centroid via setPhiOnCentroid call
     m_phi_loc = Location::CellCenter;
 }
@@ -456,7 +455,7 @@ MLEBABecLap::setEBHomogDirichlet (int amrlev, const MultiFab& beta)
                 {
                     if (flag(i,j,k).isSingleValued()) {
                         betaout(i,j,k,n) = betain(i,j,k,n);
-                    } else { 
+                    } else {
                         betaout(i,j,k,n) = 0.0;
                     }
                 });
@@ -609,7 +608,7 @@ MLEBABecLap::averageDownCoeffs ()
     {
         auto& fine_a_coeffs = m_a_coeffs[amrlev];
         auto& fine_b_coeffs = m_b_coeffs[amrlev];
-        
+
         averageDownCoeffsSameAmrLevel(amrlev, fine_a_coeffs, fine_b_coeffs,
                                       amrex::GetVecOfPtrs(m_eb_b_coeffs[0]));
         averageDownCoeffsToCoarseAmrLevel(amrlev);
@@ -687,7 +686,7 @@ MLEBABecLap::prepareForSolve ()
     BL_PROFILE("MLABecLaplacian::prepareForSolve()");
 
     MLCellABecLap::prepareForSolve();
-    
+
     averageDownCoeffs();
 
     if (m_eb_phi[0]) {
@@ -744,7 +743,7 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
                  const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];,
                  const MultiFab& bzcoef = m_b_coeffs[amrlev][mglev][2];);
     const iMultiFab& ccmask = m_cc_mask[amrlev][mglev];
-    
+
     const auto dxinvarr = m_geom[amrlev][mglev].InvCellSizeArray();
 
     auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get());
@@ -767,6 +766,21 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
 
     const Real ascalar = m_a_scalar;
     const Real bscalar = m_b_scalar;
+
+    const Box& domain_box = m_geom[amrlev][mglev].Domain();
+
+    const int domlo_x = domain_box.smallEnd(0);
+    const int domhi_x = domain_box.bigEnd(0);
+    const int domlo_y = domain_box.smallEnd(1);
+    const int domhi_y = domain_box.bigEnd(1);
+#if (AMREX_SPACEDIM == 3)
+    const int domlo_z = domain_box.smallEnd(2);
+    const int domhi_z = domain_box.bigEnd(2);
+#endif
+
+    const bool extdir_x = !(m_geom[amrlev][mglev].isPeriodic(0));
+    const bool extdir_y = !(m_geom[amrlev][mglev].isPeriodic(1));
+    const bool extdir_z = !(m_geom[amrlev][mglev].isPeriodic(2));
 
     MFItInfo mfi_info;
     if (Gpu::notInLaunchRegion()) mfi_info.EnableTiling().SetDynamic(true);
@@ -846,6 +860,9 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
                                    AMREX_D_DECL(fcxfab,fcyfab,fczfab),
                                    ccfab, bafab, bcfab, bebfab, phiebfab,
 #endif
+                                   AMREX_D_DECL(domlo_x, domlo_y, domlo_z),
+                                   AMREX_D_DECL(domhi_x, domhi_y, domhi_z),
+                                   AMREX_D_DECL(extdir_x, extdir_y, extdir_z),
                                    is_eb_dirichlet, is_eb_inhomog, dxinvarr,
                                    ascalar, bscalar, ncomp, beta_on_centroid, treat_phi_as_on_centroid);
             });
@@ -919,7 +936,7 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
 #endif
     for (MFIter mfi(sol, mfi_info);  mfi.isValid(); ++mfi)
     {
-	const auto& m0 = mm0.array(mfi);
+  const auto& m0 = mm0.array(mfi);
         const auto& m1 = mm1.array(mfi);
 #if (AMREX_SPACEDIM > 1)
         const auto& m2 = mm2.array(mfi);
@@ -1091,14 +1108,14 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
 {
     BL_PROFILE("MLEBABecLap::FFlux()");
     const int compute_flux_at_centroid = (Location::FaceCentroid == flux_loc) ? 1 : 0;
-    const int mglev = 0; 
+    const int mglev = 0;
     const Box& box = mfi.tilebox();
     const int ncomp = getNComp();
 
     Array4<Real const> foo;
 
-    auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get()); 
-    const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr; 
+    auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get());
+    const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr;
 
     const MultiFab* vfrac = (factory) ? &(factory->getVolFrac()) : nullptr;
 
@@ -1120,7 +1137,7 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
 
     const bool is_eb_inhomog = m_is_eb_inhomog;
 
-    const auto fabtyp = (flags) ? (*flags)[mfi].getType(box) : FabType::regular; 
+    const auto fabtyp = (flags) ? (*flags)[mfi].getType(box) : FabType::regular;
     if (fabtyp == FabType::covered) {
         AMREX_HOST_DEVICE_PARALLEL_FOR_4D(xbx, ncomp, i, j, k, n,
         {
@@ -1195,9 +1212,9 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
 #endif
 
 #if (AMREX_SPACEDIM == 2)
-                mlebabeclap_flux_x(txbx, fx, apx, apy,      fcx, vfracfab, phi, bxcoef, 
+                mlebabeclap_flux_x(txbx, fx, apx, apy,      fcx, vfracfab, phi, bxcoef,
 #elif (AMREX_SPACEDIM == 3)
-                mlebabeclap_flux_x(txbx, fx, apx, apy, apz, fcx, vfracfab, phi, bxcoef, 
+                mlebabeclap_flux_x(txbx, fx, apx, apy, apz, fcx, vfracfab, phi, bxcoef,
 #endif
                                    msk, flagfab, ccfab, bcfab, phiebfab,
                                    is_eb_dirichlet, is_eb_inhomog,
@@ -1213,11 +1230,11 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
                 auto bycoef = dp[5];
 #endif
 #if (AMREX_SPACEDIM == 2)
-                mlebabeclap_flux_y(tybx, fy, apx, apy, 
+                mlebabeclap_flux_y(tybx, fy, apx, apy,
 #elif (AMREX_SPACEDIM == 3)
                 mlebabeclap_flux_y(tybx, fy, apx, apy, apz,
 #endif
-                                   fcy, vfracfab, phi, bycoef, msk, 
+                                   fcy, vfracfab, phi, bycoef, msk,
                                    flagfab, ccfab, bcfab, phiebfab,
                                    is_eb_dirichlet, is_eb_inhomog,
                                    dhy, face_only, ncomp, ybx,
@@ -1233,9 +1250,9 @@ MLEBABecLap::FFlux (int amrlev, const MFIter& mfi, const Array<FArrayBox*,AMREX_
                 auto fcz = dp[7];
                 auto bzcoef = dp[8];
 #endif
-                mlebabeclap_flux_z(tzbx, fz, apx, apy, apz, 
-                                   fcz, vfracfab, phi, bzcoef, msk, 
-                                   flagfab, ccfab, bcfab, phiebfab, 
+                mlebabeclap_flux_z(tzbx, fz, apx, apy, apz,
+                                   fcz, vfracfab, phi, bzcoef, msk,
+                                   flagfab, ccfab, bcfab, phiebfab,
                                    is_eb_dirichlet, is_eb_inhomog,
                                    dhz, face_only, ncomp, zbx,
                                    beta_on_centroid, phi_on_centroid);
@@ -1318,12 +1335,12 @@ MLEBABecLap::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
                  const Real dzi = m_geom[amrlev][mglev].InvCellSize(2););
     const iMultiFab& ccmask = m_cc_mask[amrlev][mglev];
 
-    auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get()); 
-    const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr; 
-    auto area = (factory) ? factory->getAreaFrac() : 
-        Array<const MultiCutFab*, AMREX_SPACEDIM>{AMREX_D_DECL(nullptr, nullptr, nullptr)}; 
+    auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get());
+    const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr;
+    auto area = (factory) ? factory->getAreaFrac() :
+        Array<const MultiCutFab*, AMREX_SPACEDIM>{AMREX_D_DECL(nullptr, nullptr, nullptr)};
     auto fcent = (factory) ? factory->getFaceCent():
-        Array<const MultiCutFab*, AMREX_SPACEDIM>{AMREX_D_DECL(nullptr, nullptr, nullptr)}; 
+        Array<const MultiCutFab*, AMREX_SPACEDIM>{AMREX_D_DECL(nullptr, nullptr, nullptr)};
 
     const MultiFab*    vfrac = (factory) ? &(factory->getVolFrac()) : nullptr;
     const MultiCutFab* bcent = (factory) ? &(factory->getBndryCent()) : nullptr;
@@ -1336,7 +1353,7 @@ MLEBABecLap::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
 #endif
     for (MFIter mfi(sol, mfi_info); mfi.isValid(); ++mfi)
     {
-        const Box& box = mfi.tilebox(); 
+        const Box& box = mfi.tilebox();
         auto fabtyp = (flags) ? (*flags)[mfi].getType(box) :FabType::regular;
         AMREX_D_TERM(Box const& fbx = mfi.nodaltilebox(0);,
                      Box const& fby = mfi.nodaltilebox(1);,
@@ -1402,14 +1419,14 @@ MLEBABecLap::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
                 {
                     mlebabeclap_grad_x(txbx, gx, s, AMREX_D_DECL(apx,apy,apz),
                                        fcx, vfracfab, msk,
-                                       flagfab, ccfab, bcfab, phiebfab, 
+                                       flagfab, ccfab, bcfab, phiebfab,
                                        is_eb_dirichlet, is_eb_inhomog,
                                        dxi, ncomp, phi_on_centroid);
                 }
                 , fby, tybx,
                 {
                     mlebabeclap_grad_y(tybx, gy, s, AMREX_D_DECL(apx,apy,apz),
-                                       fcy, vfracfab, msk, 
+                                       fcy, vfracfab, msk,
                                        flagfab, ccfab, bcfab, phiebfab,
                                        is_eb_dirichlet, is_eb_inhomog,
                                        dyi, ncomp, phi_on_centroid);
@@ -1418,7 +1435,7 @@ MLEBABecLap::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
                 , fbz, tzbx,
                 {
                     mlebabeclap_grad_z(tzbx, gz, s, apx, apy, apz,
-                                       fcz, vfracfab, msk, 
+                                       fcz, vfracfab, msk,
                                        flagfab, ccfab, bcfab, phiebfab,
                                        is_eb_dirichlet, is_eb_inhomog,
                                        dzi, ncomp, phi_on_centroid);
@@ -1431,7 +1448,7 @@ MLEBABecLap::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
                          Array4<Real const> const& ay = area[1]->const_array(mfi);,
                          Array4<Real const> const& az = area[2]->const_array(mfi););
 
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_phi_loc == Location::CellCenter, 
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_phi_loc == Location::CellCenter,
              "If computing the gradient at face centers we assume phi at cell centers");
 
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA (
@@ -1502,7 +1519,7 @@ MLEBABecLap::normalize (int amrlev, int mglev, MultiFab& mf) const
                      Array4<Real const> const& bzfab = bzcoef.const_array(mfi););
 
         auto fabtyp = (flags) ? (*flags)[mfi].getType(bx) : FabType::regular;
- 
+
         if (fabtyp == FabType::regular)
         {
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA (bx, tbx,
@@ -1550,7 +1567,7 @@ MLEBABecLap::normalize (int amrlev, int mglev, MultiFab& mf) const
 #else
                                       AMREX_D_DECL(fcxfab,fcyfab,fczfab),
 #endif
-                                      bafab, bcfab, ccfab, bebfab, is_eb_dirichlet, 
+                                      bafab, bcfab, ccfab, bebfab, is_eb_dirichlet,
                                       treat_phi_as_on_centroid, ncomp);
             });
         }
@@ -1651,12 +1668,12 @@ MLEBABecLap::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
     const auto& bcondloc = *m_bcondloc[amrlev][mglev];
 
     const auto& ccmask = m_cc_mask[amrlev][mglev];
-    
+
     auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get());
     const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr;
     auto area = (factory) ? factory->getAreaFrac()
         : Array<const MultiCutFab*,AMREX_SPACEDIM>{AMREX_D_DECL(nullptr,nullptr,nullptr)};
-    
+
     FArrayBox foofab(Box::TheUnitBox(),ncomp);
     const auto& foo = foofab.array();
 
@@ -1916,7 +1933,7 @@ MLEBABecLap::CalcCoeff0 (int amrlev, int mglev, MultiFab& out)
                  const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];,
                  const MultiFab& bzcoef = m_b_coeffs[amrlev][mglev][2];);
     const iMultiFab& ccmask = m_cc_mask[amrlev][mglev];
-    
+
     const auto dxinvarr = m_geom[amrlev][mglev].InvCellSizeArray();
 
     auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][mglev].get());
