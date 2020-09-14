@@ -120,22 +120,23 @@ MyTest::compute_gradient ()
                   grad_x_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
                                                     flag, ccent, bcent, apx, apy,
                                                     yloc_on_xface, is_eb_dirichlet, is_eb_inhomog,
-                                                    on_x_face, domlo_x, domhi_x,
-                                                    on_y_face, domlo_y, domhi_y);
-
-                if(i==3 and j==0 and n==0)
-                  amrex::Print() << "\n\n Calculate grad_x for (3,0):"
-                                 << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
-                                 << "    grad_x " << grad_x_arr(i,j,k,n) << std::endl;
+                                                    on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
+                                                    on_y_face, domlo_y, domhi_y, phi_arr, phi_arr);
 
 
                 grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
                   grad_y_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
                                                     flag, ccent, bcent, apx, apy,
                                                     xloc_on_yface, is_eb_dirichlet, is_eb_inhomog,
-                                                    on_y_face, domlo_x, domhi_x,
-                                                    on_y_face, domlo_y, domhi_y);
+                                                    on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
+                                                    on_y_face, domlo_y, domhi_y, phi_arr, phi_arr);
 
+                if(i==3 and j==0 and n==0)
+                  amrex::Print() << "\n\n Calculate grad_x for (3,0):"
+                                 << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
+                                 << "\n  grad_x " << grad_x_arr(i,j,k,n)
+                                 << "\n  grad_y " << grad_y_arr(i,j,k,n)
+                                 << "\n\n\n\n ";
 
               } else {
 
@@ -157,7 +158,8 @@ MyTest::compute_gradient ()
             if (flag(i,j,k).isSingleValued())
               grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
                         flag, ccent, bcent, nx, ny, is_eb_inhomog,
-                        on_x_face, domlo_x, domhi_x, on_y_face, domlo_y, domhi_y);
+                        on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
+                        on_y_face, domlo_y, domhi_y, phi_arr, phi_arr);
 
 #else
             needs_bdry_stencil = needs_bdry_stencil or
@@ -237,7 +239,7 @@ MyTest::solve ()
                       MFInfo(), *factory[ilev]);
            MultiFab::Copy(v, vfrc, 0, 0, 1, 0);
            amrex::EB_set_covered(v, 1.0);
-           amrex::Print() << "vfrc min = " << v.min(0) << std::endl;
+           // amrex::Print() << "vfrc min = " << v.min(0) << std::endl;
        }
 
        std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_lobc;

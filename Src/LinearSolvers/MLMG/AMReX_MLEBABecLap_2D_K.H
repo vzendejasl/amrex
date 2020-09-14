@@ -18,8 +18,8 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
                         Array4<Real const> const& phieb,
                         Array4<Real const> const& bcval_xlo, Array4<Real const> const& bcval_ylo,
                         Array4<Real const> const& bcval_xhi, Array4<Real const> const& bcval_yhi,
-                        const int& domlo_x,   const int& domlo_y,
-                        const int& domhi_x,   const int& domhi_y,
+                        const int& domlo_x,    const int& domlo_y,
+                        const int& domhi_x,    const int& domhi_y,
                         const bool& on_x_face, const bool& on_y_face,
                         bool is_eb_dirichlet, bool is_eb_inhomog,
                         GpuArray<Real,AMREX_SPACEDIM> const& dxinv,
@@ -47,6 +47,8 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
                        - bX(i  ,j,k,n)*(x(i  ,j,k,n) - x(i-1,j,k,n)))
                 - dhy * (bY(i,j+1,k,n)*(x(i,j+1,k,n) - x(i,j  ,k,n))
                        - bY(i,j  ,k,n)*(x(i,j  ,k,n) - x(i,j-1,k,n)));
+
+
         }
         else
         {
@@ -70,7 +72,7 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
                    fxm = bX(i,j,k,n) * ( (1.0-fracy)*(x(i, j,k,n)-x(i-1, j,k,n))
                                            + fracy  *(x(i,jj,k,n)-x(i-1,jj,k,n)) );
             } else if ( phi_on_centroid and
-                       (apxm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0) ) 
+                       (apxm != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i-1,j,k) != 1.0) )
             {
                 Real yloc_on_xface = fcx(i,j,k);
 
@@ -78,13 +80,13 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
 
                   fxm = grad_x_of_phi_on_centroids_extdir(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,
                                                           yloc_on_xface,is_eb_dirichlet,is_eb_inhomog,
-                                                          on_x_face, domlo_x, domhi_x,
-                                                          on_y_face, domlo_y, domhi_y);
+                                                          on_x_face, domlo_x, domhi_x, bcval_xlo, bcval_xhi,
+                                                          on_y_face, domlo_y, domhi_y, bcval_ylo, bcval_yhi);
 
                   if(i==3 and j==0 and n==0)
                     amrex::Print() << "\n\n Calculated fxm for (3,0):"
                                    << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
-                                   << "       fxm " << fxm << std::endl;
+                                   << "\n     fxm " << fxm << std::endl;
 
                 } else {
                   fxm = grad_x_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,
@@ -108,13 +110,29 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
                 if(needs_bdry_stencil) {
                   fxp = grad_x_of_phi_on_centroids_extdir(i+1,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,
                                                           yloc_on_xface,is_eb_dirichlet,is_eb_inhomog,
-                                                          on_x_face, domlo_x, domhi_x,
-                                                          on_y_face, domlo_y, domhi_y);
+                                                          on_x_face, domlo_x, domhi_x, bcval_xlo, bcval_xhi,
+                                                          on_y_face, domlo_y, domhi_y, bcval_ylo, bcval_yhi);
+                  if(i==3 and j==0 and n==0)
+                    amrex::Print() << "\n\n Calculated fxp for (3,0):"
+                                   << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
+                                   << "\n     fxp " << fxp << std::endl;
+
                 } else {
                   fxp = grad_x_of_phi_on_centroids(i+1,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,
                                                    yloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
                 }
                 fxp *= bX(i+1,j,k,n);
+
+            } else {
+
+              if(i==3 and j==0 and n==0)
+                amrex::Print() << "\n\n Calculated fxp for (3,0):"
+                               << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
+                               << "\n      bX " << bX(i+1,j,k,n)
+                               << "\n  x(j-1) " << x(i+1,j,k,n)
+                               << "\n  x(j)   " << x(i  ,j,k,n)
+                               << "\n     fxp " << fxp << std::endl;
+
             }
 
 
@@ -130,16 +148,35 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
             } else if ( phi_on_centroid and
                        (apym != 0.0) and (vfrc(i,j,k) != 1.0 or vfrc(i,j-1,k) != 1.0) ) {
                 Real xloc_on_yface = fcy(i,j,k,0);
+
                 if(needs_bdry_stencil) {
+
                   fym = grad_y_of_phi_on_centroids_extdir(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,
                                                           xloc_on_yface,is_eb_dirichlet,is_eb_inhomog,
-                                                          on_x_face, domlo_x, domhi_x,
-                                                          on_y_face, domlo_y, domhi_y);
+                                                          on_x_face, domlo_x, domhi_x, bcval_xlo, bcval_xhi,
+                                                          on_y_face, domlo_y, domhi_y, bcval_ylo, bcval_yhi);
+
+                  if(i==3 and j==0 and n==0)
+                    amrex::Print() << "\n\n Calculated fym for (3,0):"
+                                   << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
+                                   << "\n     fym " << fym << std::endl;
+
+
                 } else {
                   fym = grad_y_of_phi_on_centroids(i,j,k,n,x,phieb,flag,ccent,bcent,apx,apy,
                                                    xloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
                 }
                 fym *= bY(i,j,k,n);
+            } else {
+
+              if(i==3 and j==0 and n==0)
+              amrex::Print() << "\n\n Calculated fym for (3,0):"
+                             << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
+                             << "\n   bY(j) " << bY(i,j,k,n)
+                             << "\n  x(j-1) " << x(i,j-1,k,n)
+                             << "\n    x(j) " << x(i,j  ,k,n)
+                             << "\n     fym " << fym << std::endl;
+
             }
 
             Real fyp = bY(i,j+1,k,n)*(x(i,j+1,k,n)-x(i,j,k,n));
@@ -157,8 +194,14 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
                 if(needs_bdry_stencil) {
                   fyp = grad_y_of_phi_on_centroids_extdir(i,j+1,k,n,x,phieb,flag,ccent,bcent,apx,apy,
                                                           xloc_on_yface,is_eb_dirichlet,is_eb_inhomog,
-                                                          on_x_face, domlo_x, domhi_x,
-                                                          on_y_face, domlo_y, domhi_y);
+                                                          on_x_face, domlo_x, domhi_x, bcval_xlo, bcval_xhi,
+                                                          on_y_face, domlo_y, domhi_y, bcval_ylo, bcval_yhi);
+
+                  if(i==3 and j==0 and n==0)
+                    amrex::Print() << "\n\n Calculated fyp for (3,0):"
+                                   << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
+                                   << "\n     fyp " << fyp << std::endl;
+
                 } else {
                   fyp = grad_y_of_phi_on_centroids(i,j+1,k,n,x,phieb,flag,ccent,bcent,apx,apy,
                                                    xloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
@@ -213,16 +256,16 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
 
                     feb = grad_eb_of_phi_on_centroids_extdir(i,j,k,n,x,phieb,flag,ccent,bcent,
                                                              anrmx,anrmy,is_eb_inhomog,
-                                                             on_x_face, domlo_x, domhi_x,
-                                                             on_y_face, domlo_y, domhi_y);
+                                                             on_x_face, domlo_x, domhi_x, bcval_xlo, bcval_xhi,
+                                                             on_y_face, domlo_y, domhi_y, bcval_ylo, bcval_yhi);
 
                     feb *= ba(i,j,k) * beb(i,j,k,n);
                 }
             }
 
 
-            if(i==3 and j==0 and n==0){
-              amrex::Print() << "\n\n Data Dump:"
+            if((i==3 or i==4) and j==0 and n==0){
+              amrex::Print() << "\n\n Data Dump:  " << i
                              << "\n alpha " << alpha
                              << "\n x     " << x(i,j,k,n)
                              << "\n kappa " << kappa << "\n"

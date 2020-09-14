@@ -834,10 +834,10 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
             AMREX_D_TERM(
                 const Orientation olo_x(0,Orientation::low );
                 const Orientation ohi_x(0,Orientation::high);,
-                const Orientation olo_y(0,Orientation::low );
-                const Orientation ohi_y(0,Orientation::high);,
-                const Orientation olo_z(0,Orientation::low );
-                const Orientation ohi_z(0,Orientation::high));;
+                const Orientation olo_y(1,Orientation::low );
+                const Orientation ohi_y(1,Orientation::high);,
+                const Orientation olo_z(2,Orientation::low );
+                const Orientation ohi_z(2,Orientation::high));;
 
             AMREX_D_TERM(
                 const auto& bvlo_x = (bndry != nullptr) ? bndry->bndryValues(olo_x).array(mfi) : foo;

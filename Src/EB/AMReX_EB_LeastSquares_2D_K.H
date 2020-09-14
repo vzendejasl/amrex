@@ -520,7 +520,11 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                        Real& yloc_on_xface,
                                        bool is_eb_dirichlet, bool is_eb_inhomog,
                                        const bool on_x_face, const int domlo_x, const int domhi_x,
-                                       const bool on_y_face, const int domlo_y, const int domhi_y)
+                                       Array4<Real const> const& bcval_xlo,
+                                       Array4<Real const> const& bcval_xhi,
+                                       const bool on_y_face, const int domlo_y, const int domhi_y,
+                                       Array4<Real const> const& bcval_ylo,
+                                       Array4<Real const> const& bcval_yhi)
 {
     Array2D<Real,0,17,0,5> Amatrix;
     Array1D<Real,0, 5    > rhs;
@@ -612,7 +616,7 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
             }
         }
 
-#if 1
+#if 0
     //////////////////////////////////////////////////////////////////////////
     if(i==3 and j==0 and n==0){
       amrex::Print() << "\n\n\n Matrix data: \n";
@@ -629,9 +633,17 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
           {
             int irow   = (jj-(j-1)) + 3*(ii-(i-im)) ;
             AMREX_ASSERT(0<=irow and irow <9);
+
             phi_vec(irow) = phi(ii,jj,k,n);
 
-            amrex::Print() << "row: " << irow << "  ii/jj " << ii << "  " << jj << "   phi: " << phi(ii,jj,k,n) << std::endl;
+            if(ii < domlo_x )
+              phi_vec(irow) = bcval_xlo(ii,jj,k,n);
+            else if (ii > domhi_x)
+              phi_vec(irow) = bcval_xhi(ii,jj,k,n);
+            else if (jj < domlo_y)
+              phi_vec(irow) = bcval_ylo(ii,jj,k,n);
+            else if (jj > domhi_y)
+              phi_vec(irow) = bcval_yhi(ii,jj,k,n);
 
             if (flag(ii,jj,k).isSingleValued() && is_eb_dirichlet && is_eb_inhomog){
               int irow_eb  = irow + 9;
@@ -641,13 +653,13 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
 
           }
 
-      // for (int irow = 0; irow < 18; irow++){
-      //   amrex::Print() << irow << ",  " ;
-      //   for (int icol = 0; icol < 6; icol++){
-      //     amrex::Print() << Amatrix(irow,icol) << ",  ";
-      //   }
-      //   amrex::Print() << ", " << phi_vec(irow) << "\n";
-      // }
+      for (int irow = 0; irow < 18; irow++){
+        amrex::Print() << irow << ",  " ;
+        for (int icol = 0; icol < 6; icol++){
+          amrex::Print() << Amatrix(irow,icol) << ",  ";
+        }
+        amrex::Print() << ", " << phi_vec(irow) << "\n";
+      }
 
       amrex::Print() << "\n\n\n";
     }
@@ -670,20 +682,27 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
             {
                 if (!flag(ii,jj,k).isCovered())
                 {
+
+                    Real phi_val = phi(ii,jj,k,n);
+                    if(ii < domlo_x )
+                      phi_val = bcval_xlo(ii,jj,k,n);
+                    else if (ii > domhi_x)
+                      phi_val = bcval_xhi(ii,jj,k,n);
+                    else if (jj < domlo_y)
+                      phi_val = bcval_ylo(ii,jj,k,n);
+                    else if (jj > domhi_y)
+                      phi_val = bcval_yhi(ii,jj,k,n);
+
                     int a_ind  = (jj-(j-1)) + 3*(ii-(i-im));
                     AMREX_ASSERT(0<=a_ind and a_ind <9);
-                    rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
+
+                    rhs(irow) += Amatrix(a_ind  ,irow)*phi_val;
 
                     if (flag(ii,jj,k).isSingleValued() &&
                         is_eb_dirichlet && is_eb_inhomog)
                             rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
                 }
             }
-
-        if(i==3 and j==0 and n==0){
-          // amrex::Print() << irow << "  " << rhs(irow) << std::endl;
-        }
-
     }
 
 
@@ -713,7 +732,11 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                        Real& xloc_on_yface,
                                        bool is_eb_dirichlet, bool is_eb_inhomog,
                                        const bool on_x_face, const int domlo_x, const int domhi_x,
-                                       const bool on_y_face, const int domlo_y, const int domhi_y)
+                                       Array4<Real const> const& bcval_xlo,
+                                       Array4<Real const> const& bcval_xhi,
+                                       const bool on_y_face, const int domlo_y, const int domhi_y,
+                                       Array4<Real const> const& bcval_ylo,
+                                       Array4<Real const> const& bcval_yhi)
 {
 
     Array2D<Real,0,17,0,5> Amatrix;
@@ -804,7 +827,7 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
 
 #if 0
     //////////////////////////////////////////////////////////////////////////
-    if(i==8 and j==0){
+    if(i==3 and j==0 and n==0){
 
       Array1D<Real,0,17> phi_vec;
 
@@ -846,12 +869,27 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
             for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
                 if (!flag(ii,jj,k).isCovered())
                 {
+                    Real phi_val = phi(ii,jj,k,n);
+                    if(ii < domlo_x )
+                      phi_val = bcval_xlo(ii,jj,k,n);
+                    else if (ii > domhi_x)
+                      phi_val = bcval_xhi(ii,jj,k,n);
+                    else if (jj < domlo_y)
+                      phi_val = bcval_ylo(ii,jj,k,n);
+                    else if (jj > domhi_y)
+                     phi_val = bcval_yhi(ii,jj,k,n);
+
                     int a_ind  = (ii-(i-1)) + 3*(jj-(j-jm));
-                    rhs(irow) += Amatrix(a_ind  ,irow)*  phi(ii,jj,k,n);
+                    AMREX_ASSERT(0<=irow and irow < 9);
+
+                    rhs(irow) += Amatrix(a_ind,irow)*phi_val;
 
                     if (flag(ii,jj,k).isSingleValued() &&
-                        is_eb_dirichlet && is_eb_inhomog)
-                            rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
+                        is_eb_dirichlet && is_eb_inhomog){
+                      int irow_eb  = irow + 9;
+                      AMREX_ASSERT(9<=irow_eb and irow_eb < 18);
+                      rhs(irow_eb) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
+                    }
                 }
 
     }
@@ -872,8 +910,11 @@ Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                         Real& nrmx, Real& nrmy,
                                         bool is_eb_inhomog,
                                         const bool on_x_face, const int domlo_x, const int domhi_x,
-                                        const bool on_y_face, const int domlo_y, const int domhi_y)
-
+                                        Array4<Real const> const& bcval_xlo,
+                                        Array4<Real const> const& bcval_xhi,
+                                        const bool on_y_face, const int domlo_y, const int domhi_y,
+                                        Array4<Real const> const& bcval_ylo,
+                                        Array4<Real const> const& bcval_yhi)
 {
     Array2D<Real,0,17,0,5> Amatrix;
     Array1D<Real,0, 5    > rhs;
@@ -953,8 +994,20 @@ Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
             for (int jj = j-1; jj <= j+1; jj++)
                 if (!flag(ii,jj,k).isCovered())
                 {
+                    Real phi_val = phi(ii,jj,k,n);
+                    if(ii < domlo_x )
+                      phi_val = bcval_xlo(ii,jj,k,n);
+                    else if (ii > domhi_x)
+                      phi_val = bcval_xhi(ii,jj,k,n);
+                    else if (jj < domlo_y)
+                      phi_val = bcval_ylo(ii,jj,k,n);
+                    else if (jj > domhi_y)
+                      phi_val = bcval_yhi(ii,jj,k,n);
+
                     int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
-                    rhs(irow) += Amatrix(a_ind,irow) * phi(ii,jj,k,n);
+
+                    rhs(irow) += Amatrix(a_ind,irow) * phi_val;
+
                     if (flag(ii,jj,k).isSingleValued() and is_eb_inhomog)
                         rhs(irow) += Amatrix(a_ind+9,irow)*phieb(ii,jj,k,n);
                 }
