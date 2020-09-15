@@ -1983,6 +1983,23 @@ MLEBABecLap::CalcCoeff0 (int amrlev, int mglev, MultiFab& out)
     const Real ascalar = m_a_scalar;
     const Real bscalar = m_b_scalar;
 
+    const Box& domain_box = m_geom[amrlev][mglev].Domain();
+
+    AMREX_D_TERM(
+        const int domlo_x = domain_box.smallEnd(0);
+        const int domhi_x = domain_box.bigEnd(0);,
+        const int domlo_y = domain_box.smallEnd(1);
+        const int domhi_y = domain_box.bigEnd(1);,
+        const int domlo_z = domain_box.smallEnd(2);
+        const int domhi_z = domain_box.bigEnd(2););
+
+    AMREX_D_TERM(
+        const bool extdir_x = !(m_geom[amrlev][mglev].isPeriodic(0));,
+        const bool extdir_y = !(m_geom[amrlev][mglev].isPeriodic(1));,
+        const bool extdir_z = !(m_geom[amrlev][mglev].isPeriodic(2)););
+
+    auto bndry = m_bndry_sol[amrlev].get();
+
     // Create a dummy MF that we can use to compute the diagonal coefficient
     MultiFab mf_dummy;
     mf_dummy.define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1);
@@ -2031,6 +2048,22 @@ MLEBABecLap::CalcCoeff0 (int amrlev, int mglev, MultiFab& out)
             Array4<Real const> const& phiebfab = (is_eb_dirichlet && is_eb_inhomog)
                 ? m_eb_phi[amrlev]->const_array(mfi) : foo;
 
+            AMREX_D_TERM(
+                const Orientation olo_x(0,Orientation::low );
+                const Orientation ohi_x(0,Orientation::high);,
+                const Orientation olo_y(1,Orientation::low );
+                const Orientation ohi_y(1,Orientation::high);,
+                const Orientation olo_z(2,Orientation::low );
+                const Orientation ohi_z(2,Orientation::high));;
+
+            AMREX_D_TERM(
+                const auto& bvlo_x = (bndry != nullptr) ? bndry->bndryValues(olo_x).array(mfi) : foo;
+                const auto& bvhi_x = (bndry != nullptr) ? bndry->bndryValues(ohi_x).array(mfi) : foo;,
+                const auto& bvlo_y = (bndry != nullptr) ? bndry->bndryValues(olo_y).array(mfi) : foo;
+                const auto& bvhi_y = (bndry != nullptr) ? bndry->bndryValues(ohi_y).array(mfi) : foo;,
+                const auto& bvlo_z = (bndry != nullptr) ? bndry->bndryValues(olo_z).array(mfi) : foo;
+                const auto& bvhi_z = (bndry != nullptr) ? bndry->bndryValues(ohi_z).array(mfi) : foo;);
+
             bool  phi_on_centroid = (m_phi_loc  == Location::CellCentroid);
             bool beta_on_centroid = (m_beta_loc == Location::FaceCentroid);
 
@@ -2060,6 +2093,11 @@ MLEBABecLap::CalcCoeff0 (int amrlev, int mglev, MultiFab& out)
                                   AMREX_D_DECL(fcxfab,fcyfab,fczfab),
                                   ccfab, bafab, bcfab, bebfab, phiebfab,
 #endif
+                                  AMREX_D_DECL(bvlo_x,bvlo_y,bvlo_z),
+                                  AMREX_D_DECL(bvhi_x,bvhi_y,bvhi_z),
+                                  AMREX_D_DECL(domlo_x, domlo_y, domlo_z),
+                                  AMREX_D_DECL(domhi_x, domhi_y, domhi_z),
+                                  AMREX_D_DECL(extdir_x, extdir_y, extdir_z),
                                   is_eb_dirichlet, is_eb_inhomog, dxinvarr,
                                   ascalar, bscalar, ncomp, beta_on_centroid, phi_on_centroid);
             });
