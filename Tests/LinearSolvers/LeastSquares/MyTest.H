@@ -22,6 +22,10 @@ private:
     void readParameters ();
     void initGrids ();
 
+    void initializePoiseuilleData (int ilev);
+    void initializePoiseuilleDataFor2D (int ilev);
+    void initializePoiseuilleDataFor3D (int ilev);
+
     int max_level = 0;
     int ref_ratio = 2;
     int n_cell = 128;
