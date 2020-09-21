@@ -684,13 +684,13 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                 {
 
                     Real phi_val = phi(ii,jj,k,n);
-                    if(ii < domlo_x )
+                    if(on_x_face and ii < domlo_x )
                       phi_val = bcval_xlo(ii,jj,k,n);
-                    else if (ii > domhi_x)
+                    else if (on_x_face and ii > domhi_x)
                       phi_val = bcval_xhi(ii,jj,k,n);
-                    else if (jj < domlo_y)
+                    else if (on_y_face and jj < domlo_y)
                       phi_val = bcval_ylo(ii,jj,k,n);
-                    else if (jj > domhi_y)
+                    else if (on_y_face and jj > domhi_y)
                       phi_val = bcval_yhi(ii,jj,k,n);
 
                     int a_ind  = (jj-(j-1)) + 3*(ii-(i-im));
@@ -870,13 +870,13 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                 if (!flag(ii,jj,k).isCovered())
                 {
                     Real phi_val = phi(ii,jj,k,n);
-                    if(ii < domlo_x )
+                    if(on_x_face and ii < domlo_x )
                       phi_val = bcval_xlo(ii,jj,k,n);
-                    else if (ii > domhi_x)
+                    else if (on_x_face and ii > domhi_x)
                       phi_val = bcval_xhi(ii,jj,k,n);
-                    else if (jj < domlo_y)
+                    else if (on_y_face and jj < domlo_y)
                       phi_val = bcval_ylo(ii,jj,k,n);
-                    else if (jj > domhi_y)
+                    else if (on_y_face and jj > domhi_y)
                      phi_val = bcval_yhi(ii,jj,k,n);
 
                     int a_ind  = (ii-(i-1)) + 3*(jj-(j-jm));
@@ -995,13 +995,13 @@ Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                 if (!flag(ii,jj,k).isCovered())
                 {
                     Real phi_val = phi(ii,jj,k,n);
-                    if(ii < domlo_x )
+                    if(on_x_face and ii < domlo_x )
                       phi_val = bcval_xlo(ii,jj,k,n);
-                    else if (ii > domhi_x)
+                    else if (on_x_face and ii > domhi_x)
                       phi_val = bcval_xhi(ii,jj,k,n);
-                    else if (jj < domlo_y)
+                    else if (on_y_face and jj < domlo_y)
                       phi_val = bcval_ylo(ii,jj,k,n);
-                    else if (jj > domhi_y)
+                    else if (on_y_face and jj > domhi_y)
                       phi_val = bcval_yhi(ii,jj,k,n);
 
                     int a_ind  = (jj-(j-1)) + 3*(ii-(i-1));
