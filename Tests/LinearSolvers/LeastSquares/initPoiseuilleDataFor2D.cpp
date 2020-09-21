@@ -45,8 +45,7 @@ void MyTest::initializePoiseuilleDataFor2D(int ilev) {
 	        Real rx = (i+0.5+ccent(i,j,k,0)) * dx[0];
 	        Real ry = (j+0.5+ccent(i,j,k,1)) * dx[1];
 
-	        // if dirichlet, set the ghost cell values to corr. domain face values
-	        if(eb_is_dirichlet or eb_is_homog_dirichlet) {
+	        // if not periodic, set the ghost cell values to corr. domain face values
 	     	  if (i < dlo[0] and not is_periodic[0]) {
 	     		 rx = dlo[0] * dx[0];
 	     		 ry = (j+0.5+fcx(i,j,k,0)) * dx[1];
@@ -63,7 +62,6 @@ void MyTest::initializePoiseuilleDataFor2D(int ilev) {
 	     		 rx = (i+0.5+fcy(i,j,k,0)) * dx[0];
 	     		 ry = (dhi[1] + 1) * dx[1];
 	     	  }
-	        }
 
 	        auto d = std::fabs(a*rx + b*ry + c)/std::sqrt(a*a + b*b);
 
@@ -72,43 +70,42 @@ void MyTest::initializePoiseuilleDataFor2D(int ilev) {
 	        fab(i,j,k,1) = phi_mag * std::sin(t);
 
 	        if( flag(i,j,k).isCovered()) {
-	     	 fab_gx(i,j,k,0) = 0.0;
-	     	 fab_gx(i,j,k,1) = 0.0;
-	     	 fab_gy(i,j,k,0) = 0.0;
-	     	 fab_gy(i,j,k,1) = 0.0;
-	     	 fab_lap(i,j,k,0) = 0.0;
-	     	 fab_lap(i,j,k,1) = 0.0;
+             fab_gx(i,j,k,0) = 0.0;
+             fab_gx(i,j,k,1) = 0.0;
+             fab_gy(i,j,k,0) = 0.0;
+             fab_gy(i,j,k,1) = 0.0;
+             fab_lap(i,j,k,0) = 0.0;
+             fab_lap(i,j,k,1) = 0.0;
 	        }
 	        else {
-	     	 Real rxl = i * dx[0];
-	     	 Real ryl = (j+0.5+fcx(i,j,k,0)) * dx[1];
-	     	 Real fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
-	     	 fab_gx(i,j,k,0) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
-	     	 fab_gx(i,j,k,1) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
-	     	 fab_lap(i,j,k,0) = 2.0*a*a*std::cos(t)/(a*a + b*b);
-	     	 fab_lap(i,j,k,1) = 2.0*a*a*std::sin(t)/(a*a + b*b);
+             fab_lap(i,j,k,0) = 2.0*a*a*std::cos(t)/(a*a + b*b) + 2.0*b*b*std::cos(t)/(a*a + b*b);
+             fab_lap(i,j,k,1) = 2.0*a*a*std::sin(t)/(a*a + b*b) + 2.0*b*b*std::sin(t)/(a*a + b*b);
 
-	     	 rxl = (i+0.5+fcy(i,j,k,0)) * dx[0];
-	     	 ryl = j * dx[1];
-	     	 fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
-	     	 fab_gy(i,j,k,0) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
-	     	 fab_gy(i,j,k,1) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
-	     	 fab_lap(i,j,k,0) += 2.0*b*b*std::cos(t)/(a*a + b*b);
-	     	 fab_lap(i,j,k,1) += 2.0*b*b*std::sin(t)/(a*a + b*b);
-	        }
+             Real rxl = i * dx[0];
+             Real ryl = (j+0.5+fcx(i,j,k,0)) * dx[1];
+             Real fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
+             fab_gx(i,j,k,0) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
+             fab_gx(i,j,k,1) = (apx(i,j,k) == 0.0) ? 0.0 : (a*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
 
-	        if(flag(i,j,k).isSingleValued()) {
-	     	 Real rxeb = (i+0.5+bcent(i,j,k,0)) * dx[0];
-	     	 Real ryeb = (j+0.5+bcent(i,j,k,1)) * dx[1];
-	     	 Real fac = (H - 2*(a*rxeb+b*ryeb+c)/(std::sqrt(a*a + b*b)));
-	     	 Real dudx = (a*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
-	     	 Real dvdx = (a*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
-	     	 Real dudy = (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
-	     	 Real dvdy = (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+             rxl = (i+0.5+fcy(i,j,k,0)) * dx[0];
+             ryl = j * dx[1];
+             fac = (H - 2*(a*rxl+b*ryl+c)/(std::sqrt(a*a + b*b)));
+             fab_gy(i,j,k,0) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+             fab_gy(i,j,k,1) = (apy(i,j,k) == 0.0) ? 0.0 : (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+	       }
 
-	     	 fab_eb(i,j,k,0) = dudx*norm(i,j,k,0) + dudy*norm(i,j,k,1);
-	     	 fab_eb(i,j,k,1) = dvdx*norm(i,j,k,0) + dvdy*norm(i,j,k,1);
-	        }
+	       if(flag(i,j,k).isSingleValued()) {
+             Real rxeb = (i+0.5+bcent(i,j,k,0)) * dx[0];
+             Real ryeb = (j+0.5+bcent(i,j,k,1)) * dx[1];
+             Real fac = (H - 2*(a*rxeb+b*ryeb+c)/(std::sqrt(a*a + b*b)));
+             Real dudx = (a*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
+             Real dvdx = (a*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[0];
+             Real dudy = (b*std::cos(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+             Real dvdy = (b*std::sin(t)/std::sqrt(a*a + b*b)) * fac * dx[1];
+
+             fab_eb(i,j,k,0) = dudx*norm(i,j,k,0) + dudy*norm(i,j,k,1);
+             fab_eb(i,j,k,1) = dvdx*norm(i,j,k,0) + dvdy*norm(i,j,k,1);
+	       }
 		});
 	}
 }

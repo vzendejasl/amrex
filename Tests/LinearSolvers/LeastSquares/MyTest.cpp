@@ -376,18 +376,20 @@ MyTest::writePlotfile ()
 
     Vector<MultiFab> plotmf_analytic(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
-        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],12,0);
+        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],15,0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_x_analytic[ilev], 0, 0, 3, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_y_analytic[ilev], 0, 3, 3, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_z_analytic[ilev], 0, 6, 3, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_eb_analytic[ilev], 0, 9, 3, 0);
+        MultiFab::Copy(plotmf_analytic[ilev], lap_analytic[ilev], 0, 12, 3, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf_analytic),
                             {"dudx", "dvdx","dwdx",
                              "dudy","dvdy","dwdy",
                              "dudz","dvdz","dwdz",
-                             "dudn","dvdn","dwdn"},
+                             "dudn","dvdn","dwdn",
+                             "lapu","lapv","lapw"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
 
