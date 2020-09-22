@@ -1,3 +1,4 @@
+amrex.fpe_trap_invalid = 1
 eb_is_dirichlet = 0
 eb_is_homog_dirichlet = 1
 
