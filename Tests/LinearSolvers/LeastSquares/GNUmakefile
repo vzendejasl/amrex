@@ -12,8 +12,8 @@ USE_PETSC = FALSE
 
 COMP = gnu
 
-# Switch if testing 2D
-DIM = 3
+# Switch if testing 3D
+DIM = 2
 
 AMREX_HOME = ../../..
 
