@@ -62,6 +62,39 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
         Real ry = (j + 0.5 + ccent(i, j, k, 1)) * dx[1];
         Real rz = (k + 0.5 + ccent(i, j, k, 2)) * dx[2];
 
+        // if not periodic, set the ghost cell values to corr. domain face
+        // values
+        if (i < dlo[0] and not is_periodic[0]) {
+          rx = dlo[0] * dx[0];
+          ry = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
+          rz = (k + 0.5 + fcx(i, j, k, 1)) * dx[2];
+        }
+        if (i > dhi[0] and not is_periodic[0]) {
+          rx = (dhi[0] + 1) * dx[0];
+          ry = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
+          rz = (k + 0.5 + fcx(i, j, k, 1)) * dx[2];
+        }
+        if (j < dlo[1] and not is_periodic[1]) {
+          rx = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
+          ry = dlo[1] * dx[1];
+          rz = (k + 0.5 + fcy(i, j, k, 1)) * dx[2];
+        }
+        if (j > dhi[1] and not is_periodic[1]) {
+          rx = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
+          ry = (dhi[1] + 1) * dx[1];
+          rz = (k + 0.5 + fcy(i, j, k, 1)) * dx[2];
+        }
+        if (k < dlo[2] and not is_periodic[2]) {
+          rx = (i + 0.5 + fcz(i, j, k, 0)) * dx[0];
+          ry = (j + 0.5 + fcz(i, j, k, 1)) * dx[1];
+          rz = dlo[2] * dx[2];
+        }
+        if (k > dhi[2] and not is_periodic[2]) {
+          rx = (i + 0.5 + fcz(i, j, k, 0)) * dx[0];
+          ry = (j + 0.5 + fcz(i, j, k, 1)) * dx[1];
+          rz = (dhi[2] + 1) * dx[2];
+        }
+
         auto dist = std::fabs(a * rx + b * ry + c * rz + d) /
                     std::sqrt(a * a + b * b + c * c);
 
@@ -110,6 +143,19 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           fab_lap(i, j, k, 1) = 0.0;
           fab_lap(i, j, k, 2) = 0.0;
         } else {
+          fab_lap(i, j, k, 0) =
+              2.0 * a * a * flow_norm[0] / (a * a + b * b + c * c) +
+              2.0 * b * b * flow_norm[0] / (a * a + b * b + c * c) +
+              2.0 * c * c * flow_norm[0] / (a * a + b * b + c * c);
+          fab_lap(i, j, k, 1) =
+              2.0 * a * a * flow_norm[1] / (a * a + b * b + c * c) +
+              2.0 * b * b * flow_norm[1] / (a * a + b * b + c * c) +
+              2.0 * c * c * flow_norm[1] / (a * a + b * b + c * c);
+          fab_lap(i, j, k, 2) =
+              2.0 * a * a * flow_norm[2] / (a * a + b * b + c * c) +
+              2.0 * b * b * flow_norm[2] / (a * a + b * b + c * c) +
+              2.0 * c * c * flow_norm[2] / (a * a + b * b + c * c);
+
           Real rxl = i * dx[0];
           Real ryl = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
           Real rzl = (k + 0.5 + fcx(i, j, k, 1)) * dx[2];

@@ -648,6 +648,111 @@ Real grad_eb_of_phi_on_centroids(int i,int j,int k,int n,
     return dphidn;
 }
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
+                                Array4<Real const> const& phi, 
+                                Array4<Real const> const& phieb, 
+                                Array4<EBCellFlag const> const& flag,
+                                Array4<Real const> const& ccent,
+                                Array4<Real const> const& bcent, 
+                                Array4<Real const> const& apx, 
+                                Array4<Real const> const& apy, 
+                                Array4<Real const> const& apz, 
+                                Real& yloc_on_xface, Real& zloc_on_xface,
+                                bool is_eb_dirichlet, bool is_eb_inhomog,
+                                const bool on_x_face, const int domlo_x, const int domhi_x,
+                                Array4<Real const> const& bcval_xlo,
+                                Array4<Real const> const& bcval_xhi,
+                                const bool on_y_face, const int domlo_y, const int domhi_y,
+                                Array4<Real const> const& bcval_ylo,
+                                Array4<Real const> const& bcval_yhi,
+                                const bool on_z_face, const int domlo_z, const int domhi_z,
+                                Array4<Real const> const& bcval_zlo,
+                                Array4<Real const> const& bcval_zhi)
+{
+   //TODO: Implement this. Until then, simply calling the non-extdir version
+   return grad_x_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
+                              yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
+                                Array4<Real const> const& phi, 
+                                Array4<Real const> const& phieb, 
+                                Array4<EBCellFlag const> const& flag,
+                                Array4<Real const> const& ccent,
+                                Array4<Real const> const& bcent, 
+                                Array4<Real const> const& apx, 
+                                Array4<Real const> const& apy, 
+                                Array4<Real const> const& apz, 
+                                Real& xloc_on_yface, Real& zloc_on_yface,
+                                bool is_eb_dirichlet, bool is_eb_inhomog,
+                                const bool on_x_face, const int domlo_x, const int domhi_x,
+                                Array4<Real const> const& bcval_xlo,
+                                Array4<Real const> const& bcval_xhi,
+                                const bool on_y_face, const int domlo_y, const int domhi_y,
+                                Array4<Real const> const& bcval_ylo,
+                                Array4<Real const> const& bcval_yhi,
+                                const bool on_z_face, const int domlo_z, const int domhi_z,
+                                Array4<Real const> const& bcval_zlo,
+                                Array4<Real const> const& bcval_zhi)
+{
+   //TODO: Implement this. Until then, simply calling the non-extdir version
+   return grad_y_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
+                              xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Real grad_z_of_phi_on_centroids_extdir(int i,int j,int k,int n,
+                                Array4<Real const> const& phi, 
+                                Array4<Real const> const& phieb, 
+                                Array4<EBCellFlag const> const& flag,
+                                Array4<Real const> const& ccent,
+                                Array4<Real const> const& bcent, 
+                                Array4<Real const> const& apx, 
+                                Array4<Real const> const& apy, 
+                                Array4<Real const> const& apz, 
+                                Real& xloc_on_zface, Real& yloc_on_zface,
+                                bool is_eb_dirichlet, bool is_eb_inhomog,
+                                const bool on_x_face, const int domlo_x, const int domhi_x,
+                                Array4<Real const> const& bcval_xlo,
+                                Array4<Real const> const& bcval_xhi,
+                                const bool on_y_face, const int domlo_y, const int domhi_y,
+                                Array4<Real const> const& bcval_ylo,
+                                Array4<Real const> const& bcval_yhi,
+                                const bool on_z_face, const int domlo_z, const int domhi_z,
+                                Array4<Real const> const& bcval_zlo,
+                                Array4<Real const> const& bcval_zhi)
+{
+   //TODO: Implement this. Until then, simply calling the non-extdir version
+   return grad_z_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
+                              xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
+                                 Array4<Real const> const& phi, 
+                                 Array4<Real const> const& phieb, 
+                                 Array4<EBCellFlag const> const& flag,
+                                 Array4<Real const> const& ccent,
+                                 Array4<Real const> const& bcent,
+                                 Real& nrmx, Real& nrmy, Real& nrmz,
+                                 bool is_eb_inhomog,
+                                 const bool on_x_face, const int domlo_x, const int domhi_x,
+                                 Array4<Real const> const& bcval_xlo,
+                                 Array4<Real const> const& bcval_xhi,
+                                 const bool on_y_face, const int domlo_y, const int domhi_y,
+                                 Array4<Real const> const& bcval_ylo,
+                                 Array4<Real const> const& bcval_yhi,
+                                 const bool on_z_face, const int domlo_z, const int domhi_z,
+                                 Array4<Real const> const& bcval_zlo,
+                                 Array4<Real const> const& bcval_zhi)
+{
+   //TODO: Implement this. Until then, simply calling the non-extdir version
+   return grad_eb_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,nrmx,nrmy,nrmz,
+                                      is_eb_inhomog);
+}
+
 }
 
 #endif

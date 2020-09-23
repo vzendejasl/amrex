@@ -13,12 +13,12 @@ ALL_TESTS = []
 
 if args.dim == 2:
    ALL_TESTS = glob.glob('inputs.2d.*')
-   EXE = './main2d.gnu.TEST.MPI.ex'
-   MAKE_CMD = 'make DIM=2 -j10'
+   EXE = './main2d.gnu.DEBUG.MPI.ex'
+   MAKE_CMD = 'make DIM=2 DEBUG=TRUE -j10'
 elif args.dim == 3:
    ALL_TESTS = glob.glob('inputs.3d.*')
-   EXE = './main3d.gnu.TEST.MPI.ex'
-   MAKE_CMD = 'make -j10'
+   EXE = './main3d.gnu.DEBUG.MPI.ex'
+   MAKE_CMD = 'make DIM=3 DEBUG=TRUE -j10'
 
 if args.clean:
    print('Clearing plot files and building clean')
