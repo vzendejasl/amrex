@@ -69,7 +69,7 @@ void mlebabeclap_adotx (Box const& box, Array4<Real> const& y,
             // First get EB-aware slope that doesn't know about extdir
             bool needs_bdry_stencil = (i <= domlo_x) or (i >= domhi_x) or
                                       (j <= domlo_y) or (j >= domhi_y) or
-                                      (k <= domlo_z) or (j >= domhi_z);
+                                      (k <= domlo_z) or (k >= domhi_z);
 
             Real fxm = bX(i,j,k,n)*(x(i,j,k,n) - x(i-1,j,k,n));
             if (phi_on_center and apxm != 0.0 and apxm != 1.0) {

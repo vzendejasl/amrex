@@ -670,9 +670,134 @@ Real grad_x_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                 Array4<Real const> const& bcval_zlo,
                                 Array4<Real const> const& bcval_zhi)
 {
-   //TODO: Implement this. Until then, simply calling the non-extdir version
-   return grad_x_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                              yloc_on_xface,zloc_on_xface,is_eb_dirichlet,is_eb_inhomog);
+    Array2D<Real,0,53,0,9> Amatrix;
+    Array1D<Real,0, 9    > rhs;
+
+    // Order of column -- first 9 are cell centroids, second 9 are EB centroids
+
+    for (int irow = 0; irow < 54; irow++)
+        for (int icol = 0; icol < 10; icol++)
+            Amatrix(irow,icol) =  0.0;
+
+    const int im = (i > domhi_x) ? 2 : 1;
+    const int ip = 2 - im;
+
+    //  Columns 0-3: [e x y z]
+    for (int ii = i-im; ii <= i+ip; ii++) // Normal to face
+      for (int kk = k-1; kk <= k+1; kk++)  // Tangential to face
+         for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
+         {
+            // Don't include corner cells. Could make this even more strict
+            // by removing the on_?_face restrictions.
+            if (((on_x_face and ii < domlo_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii < domlo_x) and (on_y_face and jj > domhi_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj > domhi_y)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk > domhi_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk > domhi_z))) {
+              continue;
+            }
+
+            if (!flag(ii,jj,kk).isCovered())
+            {
+
+                int a_ind  = (jj-(j-1)) + 3*(kk-(k-1)) + 9*(ii-(i-im));
+    
+                Real x_off = static_cast<Real>(ii-i) + 0.5;
+                Real y_off = static_cast<Real>(jj-j); 
+                Real z_off = static_cast<Real>(kk-k); 
+
+                Real c_x_off = 0.;
+                if (on_x_face and ii < domlo_x)
+                  c_x_off =  0.5;
+                else if (on_x_face and ii > domhi_x)
+                  c_x_off = -0.5;
+
+                Real c_y_off = 0.;
+                if (on_y_face and jj < domlo_y)
+                  c_y_off =  0.5;
+                else if (on_y_face and jj > domhi_y)
+                  c_y_off = -0.5;
+
+                Real c_z_off = 0.;
+                if (on_z_face and kk < domlo_z)
+                  c_z_off =  0.5;
+                else if (on_z_face and kk > domhi_z)
+                  c_z_off = -0.5;
+    
+                Amatrix(a_ind,0) = 1.0;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,kk,0) + c_x_off;
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,kk,1) - yloc_on_xface + c_y_off;
+                Amatrix(a_ind,3) = z_off + ccent(ii,jj,kk,2) - zloc_on_xface + c_z_off;
+
+                // Add in information about the location of the EB. Exclude
+                // EBs that are outside the domain.
+                if (flag(ii,jj,kk).isSingleValued() and
+                    domlo_x <= ii and ii <= domhi_x and
+                    domlo_y <= jj and jj <= domhi_y and
+                    domlo_z <= kk and kk <= domhi_z)
+                {
+                    Amatrix(a_ind+18,0) = 1.0;
+                    Amatrix(a_ind+18,1) = x_off + bcent(ii,jj,kk,0);
+                    Amatrix(a_ind+18,2) = y_off + bcent(ii,jj,kk,1) - yloc_on_xface;
+                    Amatrix(a_ind+18,3) = z_off + bcent(ii,jj,kk,2) - zloc_on_xface;
+                }
+            }
+         }
+
+    // Columns 4-9 : [x*x  x*y  y*y  x*z  y*z  z*z]
+    for (int irow = 0; irow < 54; irow++)
+    {
+       Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,1);
+       Amatrix(irow,5) =  Amatrix(irow,1) * Amatrix(irow,2);
+       Amatrix(irow,6) =  Amatrix(irow,2) * Amatrix(irow,2);
+       Amatrix(irow,7) =  Amatrix(irow,1) * Amatrix(irow,3);
+       Amatrix(irow,8) =  Amatrix(irow,2) * Amatrix(irow,3);
+       Amatrix(irow,9) =  Amatrix(irow,3) * Amatrix(irow,3);
+    }
+
+    // Make the RHS = A^T v
+    for (int irow = 0; irow < 10; irow++)
+    {
+        rhs(irow) = 0.;
+
+        for (int ii = i-im; ii <= i+ip; ii++)  // Normal to face
+          for (int kk = k-1; kk <= k+1; kk++)  // Tangential to face
+           for (int jj = j-1; jj <= j+1; jj++) // Tangential to face
+               if (!flag(ii,jj,kk).isCovered())
+               {
+                    Real phi_val = phi(ii,jj,kk,n);
+                    if(on_x_face and ii < domlo_x)
+                       phi_val = bcval_xlo(ii,jj,kk,n);
+                    else if (on_x_face and ii > domhi_x)
+                       phi_val = bcval_xhi(ii,jj,kk,n);
+                    else if (on_y_face and jj < domlo_y)
+                       phi_val = bcval_ylo(ii,jj,kk,n);
+                    else if (on_y_face and jj > domhi_y)
+                       phi_val = bcval_yhi(ii,jj,kk,n);
+                    else if (on_z_face and kk < domlo_y)
+                       phi_val = bcval_zlo(ii,jj,kk,n);
+                    else if (on_z_face and kk > domhi_z)
+                       phi_val = bcval_zhi(ii,jj,kk,n);
+
+                    int a_ind  = (jj-(j-1)) + 3*(kk-(k-1)) + 9*(ii-(i-im));
+
+                    rhs(irow) += Amatrix(a_ind,irow)*  phi_val;
+
+                    if (flag(ii,jj,kk).isSingleValued() and is_eb_inhomog)  
+                        rhs(irow) += Amatrix(a_ind+18,irow)*phieb(ii,jj,kk,n);
+               }
+    }
+
+    cholsol_for_eb(Amatrix, rhs);
+
+    return rhs(1);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -697,9 +822,133 @@ Real grad_y_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                 Array4<Real const> const& bcval_zlo,
                                 Array4<Real const> const& bcval_zhi)
 {
-   //TODO: Implement this. Until then, simply calling the non-extdir version
-   return grad_y_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                              xloc_on_yface,zloc_on_yface,is_eb_dirichlet,is_eb_inhomog);
+    Array2D<Real,0,53,0,9> Amatrix;
+    Array1D<Real,0, 9    > rhs;
+
+    // Order of column -- first 9 are cell centroids, second 9 are EB centroids
+
+    for (int irow = 0; irow < 54; irow++)
+        for (int icol = 0; icol < 10; icol++)
+            Amatrix(irow,icol) =  0.0;
+
+    const int jm = (j > domhi_y) ? 2 : 1;
+    const int jp = 2 - jm;
+
+    //  Columns 0-2: [e x y]
+    for (int jj = j-jm; jj <= j+jp; jj++) // Normal to face
+      for (int kk = k-1; kk <= k+1; kk++)  // Tangential to face
+        for (int ii = i-1; ii <= i+1; ii++)  // Tangential to face
+        {
+            // Don't include corner cells. Could make this even more strict
+            // by removing the on_?_face restrictions.
+            if (((on_x_face and ii < domlo_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii < domlo_x) and (on_y_face and jj > domhi_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj > domhi_y)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk > domhi_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk > domhi_z))) {
+              continue;
+            }
+
+            if (!flag(ii,jj,kk).isCovered())
+            {
+                int a_ind  = (ii-(i-1)) + 3*(kk-(k-1)) + 9*(jj-(j-jm));
+
+                Real x_off = static_cast<Real>(ii-i); 
+                Real y_off = static_cast<Real>(jj-j) + 0.5;
+                Real z_off = static_cast<Real>(kk-k);
+
+                Real c_x_off = 0.;
+                if (on_x_face and ii < domlo_x)
+                  c_x_off =  0.5;
+                else if (on_x_face and ii > domhi_x)
+                  c_x_off = -0.5;
+
+                Real c_y_off = 0.;
+                if (on_y_face and jj < domlo_y)
+                  c_y_off =  0.5;
+                else if (on_y_face and jj > domhi_y)
+                  c_y_off = -0.5;
+
+                Real c_z_off = 0.;
+                if (on_z_face and kk < domlo_z)
+                  c_z_off =  0.5;
+                else if (on_z_face and kk > domhi_z)
+                  c_z_off = -0.5;
+    
+                Amatrix(a_ind,0) = 1.0;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,kk,0) - xloc_on_yface + c_x_off;
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,kk,1) + c_y_off;
+                Amatrix(a_ind,3) = z_off + ccent(ii,jj,kk,2) - zloc_on_yface + c_z_off;
+
+                // Add in information about the location of the EB. Exclude
+                // EBs that are outside the domain.
+                if (flag(ii,jj,kk).isSingleValued() and
+                    domlo_x <= ii and ii <= domhi_x and
+                    domlo_y <= jj and jj <= domhi_y and
+                    domlo_z <= kk and kk <= domhi_z)
+                {
+                    Amatrix(a_ind+18,0) = 1.0;
+                    Amatrix(a_ind+18,1) = x_off + bcent(ii,jj,kk,0) - xloc_on_yface;
+                    Amatrix(a_ind+18,2) = y_off + bcent(ii,jj,kk,1);
+                    Amatrix(a_ind+18,3) = z_off + bcent(ii,jj,kk,2) - zloc_on_yface;
+                }
+            }
+        }
+
+    // Columns 4-9 : [x*x  x*y  y*y  x*z  y*z  z*z]
+    for (int irow = 0; irow < 54; irow++)
+    {
+       Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,1);
+       Amatrix(irow,5) =  Amatrix(irow,1) * Amatrix(irow,2);
+       Amatrix(irow,6) =  Amatrix(irow,2) * Amatrix(irow,2);
+       Amatrix(irow,7) =  Amatrix(irow,1) * Amatrix(irow,3);
+       Amatrix(irow,8) =  Amatrix(irow,2) * Amatrix(irow,3);
+       Amatrix(irow,9) =  Amatrix(irow,3) * Amatrix(irow,3);
+    }
+
+    // Make the RHS = A^T v
+    for (int irow = 0; irow < 10; irow++)
+    {
+        rhs(irow) = 0.;
+
+        for (int jj = j-jm; jj <= j+jp; jj++) // Normal to face
+           for (int kk = k-1; kk <= k+1; kk++)  // Tangential to face
+             for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
+                if (!flag(ii,jj,kk).isCovered())
+                {
+                    Real phi_val = phi(ii,jj,kk,n);
+                    if(on_x_face and ii < domlo_x)
+                       phi_val = bcval_xlo(ii,jj,kk,n);
+                    else if (on_x_face and ii > domhi_x)
+                       phi_val = bcval_xhi(ii,jj,kk,n);
+                    else if (on_y_face and jj < domlo_y)
+                       phi_val = bcval_ylo(ii,jj,kk,n);
+                    else if (on_y_face and jj > domhi_y)
+                       phi_val = bcval_yhi(ii,jj,kk,n);
+                    else if (on_z_face and kk < domlo_y)
+                       phi_val = bcval_zlo(ii,jj,kk,n);
+                    else if (on_z_face and kk > domhi_z)
+                       phi_val = bcval_zhi(ii,jj,kk,n);
+
+                    int a_ind  = (ii-(i-1)) + 3*(kk-(k-1)) + 9*(jj-(j-jm));
+
+                    rhs(irow) += Amatrix(a_ind,irow)*  phi_val;
+
+                    if (flag(ii,jj,kk).isSingleValued() and is_eb_inhomog)  
+                        rhs(irow) += Amatrix(a_ind+18,irow)*phieb(ii,jj,kk,n);
+                }
+    }
+
+    cholsol_for_eb(Amatrix, rhs);
+
+    return rhs(2);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -724,9 +973,135 @@ Real grad_z_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                 Array4<Real const> const& bcval_zlo,
                                 Array4<Real const> const& bcval_zhi)
 {
-   //TODO: Implement this. Until then, simply calling the non-extdir version
-   return grad_z_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,apx,apy,apz,
-                              xloc_on_zface,yloc_on_zface,is_eb_dirichlet,is_eb_inhomog);
+    Array2D<Real,0,53,0,9> Amatrix;
+    Array1D<Real,0, 9    > rhs;
+
+    // Order of column -- first 9 are cell centroids, second 9 are EB centroids
+
+    for (int irow = 0; irow < 54; irow++)
+        for (int icol = 0; icol < 10; icol++)
+            Amatrix(irow,icol) =  0.0;
+
+    const int km = (k > domhi_z) ? 2 : 1;
+    const int kp = 2 - km;
+
+    //  Columns 0-3: [e x y z]
+    for (int kk = k-km; kk <= k+kp; kk++) // Normal to face
+    {
+        for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
+         for (int ii = i-1; ii <= i+1; ii++)  // Tangential to face
+         {
+            // Don't include corner cells. Could make this even more strict
+            // by removing the on_?_face restrictions.
+            if (((on_x_face and ii < domlo_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii < domlo_x) and (on_y_face and jj > domhi_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj > domhi_y)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk > domhi_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk > domhi_z))) {
+              continue;
+            }
+
+            if (!flag(ii,jj,kk).isCovered())
+            {
+                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-km));
+
+                Real x_off = static_cast<Real>(ii-i); 
+                Real y_off = static_cast<Real>(jj-j); 
+                Real z_off = static_cast<Real>(kk-k) + 0.5;
+
+                Real c_x_off = 0.;
+                if (on_x_face and ii < domlo_x)
+                  c_x_off =  0.5;
+                else if (on_x_face and ii > domhi_x)
+                  c_x_off = -0.5;
+
+                Real c_y_off = 0.;
+                if (on_y_face and jj < domlo_y)
+                  c_y_off =  0.5;
+                else if (on_y_face and jj > domhi_y)
+                  c_y_off = -0.5;
+
+                Real c_z_off = 0.;
+                if (on_z_face and kk < domlo_z)
+                  c_z_off =  0.5;
+                else if (on_z_face and kk > domhi_z)
+                  c_z_off = -0.5;
+    
+                Amatrix(a_ind,0) = 1.0;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,kk,0) - xloc_on_zface + c_x_off;
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,kk,1) - yloc_on_zface + c_y_off;
+                Amatrix(a_ind,3) = z_off + ccent(ii,jj,kk,2) + c_z_off;
+
+                // Add in information about the location of the EB. Exclude
+                // EBs that are outside the domain.
+                if (flag(ii,jj,kk).isSingleValued() and
+                    domlo_x <= ii and ii <= domhi_x and
+                    domlo_y <= jj and jj <= domhi_y and
+                    domlo_z <= kk and kk <= domhi_z)
+                {
+                    Amatrix(a_ind+18,0) = 1.0;
+                    Amatrix(a_ind+18,1) = x_off + bcent(ii,jj,kk,0) - xloc_on_zface;
+                    Amatrix(a_ind+18,2) = y_off + bcent(ii,jj,kk,1) - yloc_on_zface;
+                    Amatrix(a_ind+18,3) = z_off + bcent(ii,jj,kk,2);
+                }
+            }
+         }
+    }
+
+    // Columns 4-9 : [x*x  x*y  y*y  x*z  y*z  z*z]
+    for (int irow = 0; irow < 54; irow++)
+    {
+       Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,1);
+       Amatrix(irow,5) =  Amatrix(irow,1) * Amatrix(irow,2);
+       Amatrix(irow,6) =  Amatrix(irow,2) * Amatrix(irow,2);
+       Amatrix(irow,7) =  Amatrix(irow,1) * Amatrix(irow,3);
+       Amatrix(irow,8) =  Amatrix(irow,2) * Amatrix(irow,3);
+       Amatrix(irow,9) =  Amatrix(irow,3) * Amatrix(irow,3);
+    }
+
+    // Make the RHS = A^T v
+    for (int irow = 0; irow < 10; irow++)
+    {
+        rhs(irow) = 0.;
+
+        for (int kk = k-km; kk <= k+kp; kk++) // Normal to face
+          for (int jj = j-1; jj <= j+1; jj++)  // Tangential to face
+             for (int ii = i-1; ii <= i+1; ii++) // Tangential to face
+                if (!flag(ii,jj,kk).isCovered())
+                {
+                    Real phi_val = phi(ii,jj,kk,n);
+                    if(on_x_face and ii < domlo_x)
+                       phi_val = bcval_xlo(ii,jj,kk,n);
+                    else if (on_x_face and ii > domhi_x)
+                       phi_val = bcval_xhi(ii,jj,kk,n);
+                    else if (on_y_face and jj < domlo_y)
+                       phi_val = bcval_ylo(ii,jj,kk,n);
+                    else if (on_y_face and jj > domhi_y)
+                       phi_val = bcval_yhi(ii,jj,kk,n);
+                    else if (on_z_face and kk < domlo_y)
+                       phi_val = bcval_zlo(ii,jj,kk,n);
+                    else if (on_z_face and kk > domhi_z)
+                       phi_val = bcval_zhi(ii,jj,kk,n);
+
+                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-km));
+
+                    rhs(irow) += Amatrix(a_ind,irow)*  phi_val;
+
+                    if (flag(ii,jj,kk).isSingleValued() and is_eb_inhomog)
+                        rhs(irow) += Amatrix(a_ind+18,irow)*phieb(ii,jj,kk,n);
+                }
+    }
+
+    cholsol_for_eb(Amatrix, rhs);
+
+    return rhs(3);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -748,9 +1123,130 @@ Real grad_eb_of_phi_on_centroids_extdir(int i,int j,int k,int n,
                                  Array4<Real const> const& bcval_zlo,
                                  Array4<Real const> const& bcval_zhi)
 {
-   //TODO: Implement this. Until then, simply calling the non-extdir version
-   return grad_eb_of_phi_on_centroids(i,j,k,n,phi,phieb,flag,ccent,bcent,nrmx,nrmy,nrmz,
-                                      is_eb_inhomog);
+    Array2D<Real,0,53,0,9> Amatrix;
+    Array1D<Real,0, 9    > rhs;
+
+    // Order of column -- first 27 are cell centroids, second 27 are EB centroids
+
+    for (int irow = 0; irow < 54; irow++)
+        for (int icol = 0; icol < 10; icol++)
+            Amatrix(irow,icol) =  0.0;
+
+    //  Columns 0-3: [e x y z]
+    for (int kk = k-1; kk <= k+1; kk++)
+      for (int jj = j-1; jj <= j+1; jj++)
+         for (int ii = i-1; ii <= i+1; ii++)
+         {
+            // This is likely overkill for EB grads.
+            // Don't include corner cells. Could make this even more strict
+            // by removing the on_?_face restrictions.
+            if (((on_x_face and ii < domlo_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii < domlo_x) and (on_y_face and jj > domhi_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj < domlo_y)) or
+                ((on_x_face and ii > domhi_x) and (on_y_face and jj > domhi_y)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj < domlo_y) and (on_z_face and kk > domhi_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk < domlo_z)) or
+                ((on_y_face and jj > domhi_y) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii < domlo_x) and (on_z_face and kk > domhi_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk < domlo_z)) or
+                ((on_x_face and ii > domhi_x) and (on_z_face and kk > domhi_z))) {
+              continue;
+            }
+
+            if (!flag(ii,jj,kk).isCovered())
+            {
+                int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-1));
+
+                Real x_off = static_cast<Real>(ii-i) - bcent(i,j,k,0);
+                Real y_off = static_cast<Real>(jj-j) - bcent(i,j,k,1);
+                Real z_off = static_cast<Real>(kk-k) - bcent(i,j,k,2);
+
+                Real c_x_off = 0.;
+                if (on_x_face and ii < domlo_x)
+                  c_x_off =  0.5;
+                else if (on_x_face and ii > domhi_x)
+                  c_x_off = -0.5;
+
+                Real c_y_off = 0.;
+                if (on_y_face and jj < domlo_y)
+                  c_y_off =  0.5;
+                else if (on_y_face and jj > domhi_y)
+                  c_y_off = -0.5;
+
+                Real c_z_off = 0.;
+                if (on_z_face and kk < domlo_z)
+                  c_z_off =  0.5;
+                else if (on_z_face and kk > domhi_z)
+                  c_z_off = -0.5;
+    
+                Amatrix(a_ind,0) = 1.0;
+                Amatrix(a_ind,1) = x_off + ccent(ii,jj,kk,0) + c_x_off;
+                Amatrix(a_ind,2) = y_off + ccent(ii,jj,kk,1) + c_y_off;
+                Amatrix(a_ind,3) = z_off + ccent(ii,jj,kk,2) + c_z_off;
+
+                if (flag(ii,jj,kk).isSingleValued() and 
+                    domlo_x <= ii and ii <= domhi_x and
+                    domlo_y <= jj and jj <= domhi_y and
+                    domlo_z <= kk and kk <= domhi_z)
+                {
+                    Amatrix(a_ind+27,0) = 1.0;
+                    Amatrix(a_ind+27,1) = x_off + bcent(ii,jj,kk,0);
+                    Amatrix(a_ind+27,2) = y_off + bcent(ii,jj,kk,1);
+                    Amatrix(a_ind+27,3) = z_off + bcent(ii,jj,kk,2);
+                }
+            }
+         }
+
+    // Columns 4-9 : [x*x  x*y  y*y  x*z  y*z  z*z]
+    for (int irow = 0; irow < 54; irow++)
+    {
+       Amatrix(irow,4) =  Amatrix(irow,1) * Amatrix(irow,1);
+       Amatrix(irow,5) =  Amatrix(irow,1) * Amatrix(irow,2);
+       Amatrix(irow,6) =  Amatrix(irow,2) * Amatrix(irow,2);
+       Amatrix(irow,7) =  Amatrix(irow,1) * Amatrix(irow,3);
+       Amatrix(irow,8) =  Amatrix(irow,2) * Amatrix(irow,3);
+       Amatrix(irow,9) =  Amatrix(irow,3) * Amatrix(irow,3);
+    }
+
+    // Make the RHS = A^T v
+    for (int irow = 0; irow < 10; irow++)
+    {
+        rhs(irow) = 0.;
+
+        for (int kk = k-1; kk <= k+1; kk++)
+          for (int jj = j-1; jj <= j+1; jj++)
+             for (int ii = i-1; ii <= i+1; ii++)
+                if (!flag(ii,jj,kk).isCovered())
+                {
+                    Real phi_val = phi(ii,jj,kk,n);
+                    if(on_x_face and ii < domlo_x)
+                       phi_val = bcval_xlo(ii,jj,kk,n);
+                    else if (on_x_face and ii > domhi_x)
+                       phi_val = bcval_xhi(ii,jj,kk,n);
+                    else if (on_y_face and jj < domlo_y)
+                       phi_val = bcval_ylo(ii,jj,kk,n);
+                    else if (on_y_face and jj > domhi_y)
+                       phi_val = bcval_yhi(ii,jj,kk,n);
+                    else if (on_z_face and kk < domlo_y)
+                       phi_val = bcval_zlo(ii,jj,kk,n);
+                    else if (on_z_face and kk > domhi_z)
+                       phi_val = bcval_zhi(ii,jj,kk,n);
+
+                    int a_ind  = (ii-(i-1)) + 3*(jj-(j-1)) + 9*(kk-(k-1));
+
+                    rhs(irow) += Amatrix(a_ind,irow)*  phi_val;
+
+                    if (flag(ii,jj,kk).isSingleValued() and is_eb_inhomog)
+                        rhs(irow) += Amatrix(a_ind+27,irow)*phieb(ii,jj,kk,n);
+                }
+    }
+
+    cholsol_for_eb(Amatrix, rhs);
+
+    Real dphidn = rhs(1)*nrmx + rhs(2)*nrmy + rhs(3)*nrmz;
+    return dphidn;
 }
 
 }

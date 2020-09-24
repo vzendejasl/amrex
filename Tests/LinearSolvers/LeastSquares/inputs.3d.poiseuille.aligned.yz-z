@@ -9,8 +9,6 @@ eb2.channel_lo = 0.225  -50.0  -50.0
 eb2.channel_hi = 1.225   50.0   50.0
 eb2.channel_has_fluid_inside = 1
 
-eb2.extend_domain_face = false
-
 max_level = 0
 ref_ratio = 2
 n_cell = 14

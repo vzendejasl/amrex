@@ -174,27 +174,61 @@ MyTest::compute_gradient ()
 
             if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
 
-              grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
-                grad_x_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-                                           flag, ccent, bcent, apx, apy, apz,
-                                           yloc_on_xface, zloc_on_xface, is_eb_dirichlet, is_eb_inhomog);
+               if(needs_bdry_stencil) {
+                 grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
+                     grad_x_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
+                                                       flag, ccent, bcent, apx, apy,apz,
+                                                       yloc_on_xface, zloc_on_xface, 
+                                                       is_eb_dirichlet, is_eb_inhomog,
+                                                       on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
+                                                       on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
+                                                       on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
 
-              grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
-                grad_y_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-                                           flag, ccent, bcent, apx, apy, apz,
-                                           xloc_on_yface, zloc_on_yface, is_eb_dirichlet, is_eb_inhomog);
 
-              grad_z_arr(i,j,k,n) = (apz(i,j,k) == 0.0) ? 0.0:
-                grad_z_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-                                           flag, ccent, bcent, apx, apy, apz,
-                                           xloc_on_zface, yloc_on_zface, is_eb_dirichlet, is_eb_inhomog);
+                 grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
+                     grad_y_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
+                                                       flag, ccent, bcent, apx, apy, apz,
+                                                       xloc_on_yface, zloc_on_yface,
+                                                       is_eb_dirichlet, is_eb_inhomog,
+                                                       on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
+                                                       on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
+                                                       on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
 
+                 grad_z_arr(i,j,k,n) = (apz(i,j,k) == 0.0) ? 0.0:
+                     grad_z_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
+                                                       flag, ccent, bcent, apx, apy, apz,
+                                                       xloc_on_zface, yloc_on_zface,
+                                                       is_eb_dirichlet, is_eb_inhomog,
+                                                       on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
+                                                       on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
+                                                       on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
+               } else {
+
+                 grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
+                   grad_x_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                              flag, ccent, bcent, apx, apy, apz,
+                                              yloc_on_xface, zloc_on_xface, is_eb_dirichlet, is_eb_inhomog);
+
+                 grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
+                   grad_y_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                              flag, ccent, bcent, apx, apy, apz,
+                                              xloc_on_yface, zloc_on_yface, is_eb_dirichlet, is_eb_inhomog);
+
+                 grad_z_arr(i,j,k,n) = (apz(i,j,k) == 0.0) ? 0.0:
+                   grad_z_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
+                                              flag, ccent, bcent, apx, apy, apz,
+                                              xloc_on_zface, yloc_on_zface, is_eb_dirichlet, is_eb_inhomog);
+
+               }
             }
 
 
             if (flag(i,j,k).isSingleValued())
-              grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-                        flag, ccent, bcent, nx, ny, nz, is_eb_inhomog);
+              grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
+                        flag, ccent, bcent, nx, ny, nz, is_eb_inhomog,
+                        on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
+                        on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
+                        on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
 
 #endif
 
