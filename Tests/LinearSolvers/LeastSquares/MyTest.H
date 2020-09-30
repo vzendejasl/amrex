@@ -86,6 +86,7 @@ private:
     amrex::Vector<amrex::Array<amrex::MultiFab,AMREX_SPACEDIM> > bcoef;
     amrex::Vector<amrex::MultiFab> bcoef_eb;
     amrex::Vector<amrex::MultiFab> lap_analytic;
+    amrex::Vector<amrex::MultiFab> coeff0;
 
     amrex::Vector<amrex::BCRec> const& get_bcrec () const noexcept { return m_bcrec; }
 

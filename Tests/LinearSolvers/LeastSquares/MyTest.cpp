@@ -246,6 +246,7 @@ MyTest::solve ()
        Vector<MultiFab> rhs_comp(max_level + 1);
        Vector<MultiFab> acoef_comp(max_level + 1);
        Vector<Array<MultiFab,AMREX_SPACEDIM> > bcoef_comp(max_level + 1);
+       Vector<MultiFab> coeff0_comp(max_level + 1);
        Vector<MultiFab> bcoef_eb_comp(max_level + 1);
 
        Vector<MultiFab> phi_eb(max_level + 1);
@@ -254,6 +255,7 @@ MyTest::solve ()
            phi_comp[ilev]   = MultiFab(phi[ilev]  , make_alias, n, 1);
            rhs_comp[ilev]   = MultiFab(rhs[ilev]  , make_alias, n, 1);
            acoef_comp[ilev] = MultiFab(acoef[ilev], make_alias, n, 1);
+           coeff0_comp[ilev] = MultiFab(coeff0[ilev], make_alias, n, 1);
 
            for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
               bcoef_comp[ilev][idim] = MultiFab(bcoef[ilev][idim], make_alias, n, 1);
@@ -326,12 +328,13 @@ MyTest::solve ()
          }
        }
 
-
        MLMG mlmg(mleb);
 
        mlmg.apply(amrex::GetVecOfPtrs(rhs_comp), amrex::GetVecOfPtrs(phi_comp));
 
-
+       for(int ilev = 0; ilev <= max_level; ++ilev) {
+         MultiFab::Copy(coeff0_comp[ilev],*mleb.getCoeff0(ilev,0),0,0,1,0);
+       }
     }
 }
 
@@ -343,7 +346,7 @@ MyTest::writePlotfile ()
         const MultiFab& vfrc = factory[ilev]->getVolFrac();
 
 #if (AMREX_SPACEDIM == 2)
-        plotmf[ilev].define(grids[ilev],dmap[ilev],15,0);
+        plotmf[ilev].define(grids[ilev],dmap[ilev],17,0);
         MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 2, 0);
         MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 2, 2, 0);
         MultiFab::Copy(plotmf[ilev], vfrc, 0, 4, 1, 0);
@@ -352,6 +355,7 @@ MyTest::writePlotfile ()
         MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 9, 2, 0);
         MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 11, 2, 0);
         MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 13, 2, 0);
+        MultiFab::Copy(plotmf[ilev], coeff0[ilev], 0, 15, 2, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
@@ -362,7 +366,8 @@ MyTest::writePlotfile ()
                              "dudx", "dvdx",
                              "dudy", "dvdy",
                              "dudn", "dvdn",
-                             "ccent_x", "ccent_y"},
+                             "ccent_x", "ccent_y",
+                             "coeff0_u", "coeff0_v"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
 

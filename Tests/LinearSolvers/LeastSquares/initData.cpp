@@ -25,6 +25,7 @@ MyTest::initData ()
     ccentr.resize(nlevels);
     rhs.resize(nlevels);
     acoef.resize(nlevels);
+    coeff0.resize(nlevels);
     bcoef.resize(nlevels);
     bcoef_eb.resize(nlevels);
 
@@ -63,6 +64,7 @@ MyTest::initData ()
         ccentr[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 1, MFInfo(), *factory[ilev]);
         rhs[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
         acoef[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
+        coeff0[ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
             bcoef[ilev][idim].define(amrex::convert(grids[ilev],IntVect::TheDimensionVector(idim)),
                                      dmap[ilev], AMREX_SPACEDIM, 0, MFInfo(), *factory[ilev]);
@@ -86,6 +88,7 @@ MyTest::initData ()
         ccentr[ilev].setVal(0.0);
         rhs[ilev].setVal(0.0);
         acoef[ilev].setVal(0.0);
+        coeff0[ilev].setVal(1e40);
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
             bcoef[ilev][idim].setVal(1.0);
         }
