@@ -69,7 +69,8 @@ void MyTest::initializePoiseuilleDataFor2D(int ilev) {
 
       auto d = std::fabs(a * rx + b * ry + c) / std::sqrt(a * a + b * b);
 
-      auto phi_mag = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
+//      auto phi_mag = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
+      auto phi_mag = (!flag(i, j, k).isCovered()) ? (H - d) : 0.0;
       fab(i, j, k, 0) = phi_mag * std::cos(t);
       fab(i, j, k, 1) = phi_mag * std::sin(t);
 
@@ -86,30 +87,22 @@ void MyTest::initializePoiseuilleDataFor2D(int ilev) {
         fab_lap(i, j, k, 1) = 2.0 * a * a * std::sin(t) / (a * a + b * b) +
                               2.0 * b * b * std::sin(t) / (a * a + b * b);
 
-        Real rxl = i * dx[0];
-        Real ryl = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
+        Real rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
+        Real ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
         Real fac =
-            (H - 2 * (a * rxl + b * ryl + c) / (std::sqrt(a * a + b * b)));
+          -1.0 ;
         fab_gx(i, j, k, 0) =
-            (apx(i, j, k) == 0.0)
-                ? 0.0
-                : (a * std::cos(t) / std::sqrt(a * a + b * b)) * fac * dx[0];
+                (a * std::cos(t) / std::sqrt(a * a + b * b)) * fac * dx[0];
         fab_gx(i, j, k, 1) =
-            (apx(i, j, k) == 0.0)
-                ? 0.0
-                : (a * std::sin(t) / std::sqrt(a * a + b * b)) * fac * dx[0];
+                 (a * std::sin(t) / std::sqrt(a * a + b * b)) * fac * dx[0];
 
         rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
         ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
-        fac = (H - 2 * (a * rxl + b * ryl + c) / (std::sqrt(a * a + b * b)));
+        fac = -1.0 ;
         fab_gy(i, j, k, 0) =
-            (apy(i, j, k) == 0.0)
-                ? 0.0
-                : (b * std::cos(t) / std::sqrt(a * a + b * b)) * fac * dx[1];
+                (b * std::cos(t) / std::sqrt(a * a + b * b)) * fac * dx[1];
         fab_gy(i, j, k, 1) =
-            (apy(i, j, k) == 0.0)
-                ? 0.0
-                : (b * std::sin(t) / std::sqrt(a * a + b * b)) * fac * dx[1];
+                 (b * std::sin(t) / std::sqrt(a * a + b * b)) * fac * dx[1];
       }
 
       if (flag(i, j, k).isSingleValued()) {
