@@ -98,7 +98,8 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
         auto dist = std::fabs(a * rx + b * ry + c * rz + d) /
                     std::sqrt(a * a + b * b + c * c);
 
-        auto phi_mag = (!flag(i, j, k).isCovered()) ? dist * (H - dist) : 0.0;
+//        auto phi_mag = (!flag(i, j, k).isCovered()) ? dist * (H - dist) : 0.0;
+        auto phi_mag = (!flag(i, j, k).isCovered()) ? (H - dist) : 0.0;
 
         Vector<Real> flow_norm(3, 0.0);
 
@@ -156,11 +157,18 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
               2.0 * b * b * flow_norm[2] / (a * a + b * b + c * c) +
               2.0 * c * c * flow_norm[2] / (a * a + b * b + c * c);
 
-          Real rxl = i * dx[0];
-          Real ryl = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
-          Real rzl = (k + 0.5 + fcx(i, j, k, 1)) * dx[2];
-          Real fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
-                              (std::sqrt(a * a + b * b + c * c)));
+//          Real rxl = i * dx[0];
+//          Real ryl = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
+//          Real rzl = (k + 0.5 + fcx(i, j, k, 1)) * dx[2];
+       
+          Real rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
+          Real ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
+          Real rzl = ((k + 0.5 + ccent(i, j, k, 2))) * dx[2];
+
+//          Real fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
+ //                             (std::sqrt(a * a + b * b + c * c)));
+
+          Real fac = -1.0;
           fab_gx(i, j, k, 0) =
               (apx(i, j, k) == 0.0)
                   ? 0.0
@@ -177,11 +185,17 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
                   : (a * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[0];
 
-          rxl = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
-          ryl = j * dx[1];
-          rzl = (k + 0.5 + fcy(i, j, k, 1)) * dx[2];
-          fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
-                         (std::sqrt(a * a + b * b + c * c)));
+//          rxl = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
+//          ryl = j * dx[1];
+//          rzl = (k + 0.5 + fcy(i, j, k, 1)) * dx[2];
+      
+          rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
+          ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
+          rzl = ((k + 0.5 + ccent(i, j, k, 2))) * dx[2];
+//          fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
+//                         (std::sqrt(a * a + b * b + c * c)));
+
+          fac = -1.0;
           fab_gy(i, j, k, 0) =
               (apy(i, j, k) == 0.0)
                   ? 0.0
@@ -198,11 +212,15 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
                   : (b * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[1];
 
-          rxl = (i + 0.5 + fcz(i, j, k, 0)) * dx[0];
-          ryl = (j + 0.5 + fcz(i, j, k, 1)) * dx[1];
-          rzl = k * dx[2];
-          fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
-                         (std::sqrt(a * a + b * b + c * c)));
+//          rxl = (i + 0.5 + fcz(i, j, k, 0)) * dx[0];
+//          ryl = (j + 0.5 + fcz(i, j, k, 1)) * dx[1];
+//          rzl = k * dx[2];
+          rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
+          ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
+          rzl = ((k + 0.5 + ccent(i, j, k, 2))) * dx[2];
+//          fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
+//                         (std::sqrt(a * a + b * b + c * c)));
+          fac = -1.0;
           fab_gz(i, j, k, 0) =
               (apz(i, j, k) == 0.0)
                   ? 0.0

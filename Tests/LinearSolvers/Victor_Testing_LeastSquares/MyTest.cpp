@@ -124,9 +124,11 @@ MyTest::compute_gradient ()
 //           bool edhi_y = (on_y_face and (i == domhi_y)); 
 //
            bool edlo_x = 0;
-           bool edhi_x = 0; 
+           bool edhi_x = 1; 
            bool edlo_y = 0; 
-           bool edhi_y = 0; 
+           bool edhi_y = 1; 
+           bool edlo_z = 0; 
+           bool edhi_z = 0; 
 
 #if (AMREX_SPACEDIM == 2)
 
@@ -143,6 +145,28 @@ MyTest::compute_gradient ()
 
                    grad_x_arr(i,j,k,n) = results[0];
                    grad_y_arr(i,j,k,n) = results[1];
+
+           }
+
+
+#endif
+
+#if (AMREX_SPACEDIM == 3)
+
+           if(!flag(i,j,k).isCovered()){
+
+                   auto results = amrex_calc_slopes_extdir_eb(i,j,k,n,
+                         phi_arr,ccent,
+                         fcx,fcy,fcz,flag,
+                         edlo_x,edlo_y,
+                         edlo_x,edlo_y,
+                         edhi_z,edhi_z,
+                         domlo_x, domlo_y,domlo_z,
+                         domhi_x,domhi_y,domhi_z);
+
+                   grad_x_arr(i,j,k,n) = results[0];
+                   grad_y_arr(i,j,k,n) = results[1];
+                   grad_z_arr(i,j,k,n) = results[2];
 
            }
 
