@@ -11,12 +11,6 @@
 #include <AMReX_EB_slopes_K.H>
 #include <AMReX_Slopes_K.H>
 
-#if (AMREX_SPACEDIM)== 2
-#include <AMReX_EB_LeastSquares_2D_K.H>
-#else
-#include <AMReX_EB_LeastSquares_3D_K.H>
-#endif
-
 #include <cmath>
 
 using namespace amrex;
@@ -111,10 +105,14 @@ MyTest::compute_gradient ()
             }
 
             // First get EB-aware slope that doesn't know about extdir
-            bool needs_bdry_stencil = (on_x_face and (i <= domlo_x or i >= domhi_x)) or
-                                      (on_y_face and (j <= domlo_y or j >= domhi_y));
+            bool needs_bdry_stencil = (on_x_face and on_y_face);
 
-          
+ 
+//            Print()<<"Is periodic on x face? "<< on_x_face<< "\n";
+//            Print()<<"Is periodic on y face? "<< on_y_face<< "\n";
+//            Print()<<"Testing the needs boundary condition: "<<needs_bdry_stencil<<"\n";
+           
+//           Print()<< "if(!flag(i,j,k).isCovered()) : "<< !flag(i,j,k).isCovered()<< "\n";
 //           bool edlo = (i <= domlo_x or j <= domlo_y);
 //           bool edhi = (i >= domhi_x or j <= domhi_y);
            
@@ -123,39 +121,71 @@ MyTest::compute_gradient ()
 //           bool edlo_y = (on_y_face and (i == domlo_y)); 
 //           bool edhi_y = (on_y_face and (i == domhi_y)); 
 //
+//           bool edlo_x = 1;
+//           bool edhi_x = 1; 
+//           bool edlo_y = 1; 
+//           bool edhi_y = 1; 
+//           bool edlo_z = 1; 
+//           bool edhi_z = 1; 
+           
+
            bool edlo_x = 0;
-           bool edhi_x = 1; 
+           bool edhi_x = 0; 
            bool edlo_y = 0; 
-           bool edhi_y = 1; 
+           bool edhi_y = 0; 
            bool edlo_z = 0; 
            bool edhi_z = 0; 
 
 #if (AMREX_SPACEDIM == 2)
 
+           
+              if(needs_bdry_stencil){
+//                 Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
+                 edlo_x = 1;
+                 edhi_x = 1; 
+                 edlo_y = 1; 
+                 edhi_y = 1; 
+              }
+          
+//              Print()<< "Bool edlo_x "<< edlo_x <<"\n";
+//              Print()<< "Bool edhi_x "<< edhi_x <<"\n"; 
+//              Print()<< "Bool edlo_y "<< edlo_y <<"\n"; 
+//              Print()<< "Bool edlo_y "<< edhi_y <<"\n"; 
+              if(!flag(i,j,k).isCovered()){
 
-           if(!flag(i,j,k).isCovered()){
+                // Print()<< "The !flag(i,j,k).isCovered() is exicuting"<< "\n";
+                // Print()<< (!flag(i,j,k).isCovered())<< "\n";
+               
+                 auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
+                       phi_arr,ccent,
+                       fcx,fcy,flag,
+                       edlo_x,edlo_y,
+                       edhi_x,edhi_y,
+                       domlo_x, domlo_y,
+                       domhi_x,domhi_y);
 
-                   auto results = amrex_calc_slopes_extdir_eb(i,j,k,n,
-                         phi_arr,ccent,
-                         fcx,fcy,flag,
-                         edlo_x,edlo_y,
-                         edhi_x,edhi_y,
-                         domlo_x, domlo_y,
-                         domhi_x,domhi_y);
-
-                   grad_x_arr(i,j,k,n) = results[0];
-                   grad_y_arr(i,j,k,n) = results[1];
-
-           }
+                 grad_x_arr(i,j,k,n) = slopes[0];
+                 grad_y_arr(i,j,k,n) = slopes[1];
+              }
 
 
 #endif
 
 #if (AMREX_SPACEDIM == 3)
+              
+              if(needs_bdry_stencil){
+   //              Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
+                 edlo_x = 1;
+                 edhi_x = 1; 
+                 edlo_y = 1; 
+                 edhi_y = 1; 
+                 edlo_z = 1; 
+                 edhi_z = 1; 
+              }
 
            if(!flag(i,j,k).isCovered()){
 
-                   auto results = amrex_calc_slopes_extdir_eb(i,j,k,n,
+                   auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
                          phi_arr,ccent,
                          fcx,fcy,fcz,flag,
                          edlo_x,edlo_y,
@@ -164,180 +194,18 @@ MyTest::compute_gradient ()
                          domlo_x, domlo_y,domlo_z,
                          domhi_x,domhi_y,domhi_z);
 
-                   grad_x_arr(i,j,k,n) = results[0];
-                   grad_y_arr(i,j,k,n) = results[1];
-                   grad_z_arr(i,j,k,n) = results[2];
+                   grad_x_arr(i,j,k,n) = slopes[0];
+                   grad_y_arr(i,j,k,n) = slopes[1];
+                   grad_z_arr(i,j,k,n) = slopes[2];
 
            }
 
-//              if(needs_bdry_stencil){
-//                 if (flag(i,j,k).isSingleValued()){
-//
-//                    auto results = amrex_calc_slopes_extdir_eb(i,j,k,n,
-//                          phi_arr,ccent,
-//                          fcx,fcy,flag,
-//                          edlo_x,edlo_y,
-//                          edhi_x,edhi_y,
-//                          domlo_x, domlo_y,
-//                          domhi_x,domhi_y);
-//
-//                    grad_x_arr(i,j,k,n) = results[0];
-//                    grad_y_arr(i,j,k,n) = results[1];
-//
-//                 }
-//
-//                else{
-//
-//                   grad_x_arr(i,j,k,n)= amrex_calc_xslope_extdir(i,j,k,n,2,
-//                         phi_arr,
-//                         edlo_x,edhi_x,domlo_x,domhi_x);
-//                   grad_y_arr(i,j,k,n)= amrex_calc_yslope_extdir(i,j,k,n,2,
-//                         phi_arr,
-//                         edlo_x,edhi_x,domlo_y,domhi_y);
-//                }
-//             }
-//              else{
-//                 if (flag(i,j,k).isSingleValued()){
-//                     auto results_2 = amrex_calc_slopes_eb(i,j,k,n,
-//                          phi_arr,ccent,flag); // need to fix maybe source of error
-//                    grad_x_arr(i,j,k,n) = results_2[0];
-//                    grad_y_arr(i,j,k,n) = results_2[1];
-//              }
-//                 else{
-//                    grad_x_arr(i,j,k,n) = amrex_calc_xslope(i,j,k,n,2,
-//                          phi_arr);
-//                    grad_y_arr(i,j,k,n) = amrex_calc_yslope(i,j,k,n,2,
-//                          phi_arr);
-//
-//                 }
-//             }
-//                
-
-
-//            if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
-//
-//              if(needs_bdry_stencil){
-//
-//
-//                grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
-//                  grad_x_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
-//                                                    flag, ccent, bcent, apx, apy,
-//                                                    yloc_on_xface, is_eb_dirichlet, is_eb_inhomog,
-//                                                    on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
-//                                                    on_y_face, domlo_y, domhi_y, phi_arr, phi_arr);
-//
-//
-//                grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
-//                  grad_y_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
-//                                                    flag, ccent, bcent, apx, apy,
-//                                                    xloc_on_yface, is_eb_dirichlet, is_eb_inhomog,
-//                                                    on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
-//                                                    on_y_face, domlo_y, domhi_y, phi_arr, phi_arr);
-//
-//                if(i==3 and j==0 and n==0)
-//                  amrex::Print() << "\n\n Calculate grad_x for (3,0):"
-//                                 << "\n i/j/k/n " << i << "  " << j << "  " << k << "  " << n
-//                                 << "\n  grad_x " << grad_x_arr(i,j,k,n)
-//                                 << "\n  grad_y " << grad_y_arr(i,j,k,n)
-//                                 << "\n\n\n\n ";
-//
-//              } else {
-//
-//                grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
-//                  grad_x_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-//                                             flag, ccent, bcent, apx, apy,
-//                                             yloc_on_xface, is_eb_dirichlet, is_eb_inhomog);
-//
-//
-//                grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
-//                  grad_y_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-//                                             flag, ccent, bcent, apx, apy,
-//                                             xloc_on_yface, is_eb_dirichlet, is_eb_inhomog);
-//              }
-//
-//
-//            }
-//
-//            if (flag(i,j,k).isSingleValued())
-//              grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
-//                        flag, ccent, bcent, nx, ny, is_eb_inhomog,
-//                        on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
-//                        on_y_face, domlo_y, domhi_y, phi_arr, phi_arr);
-//
-//#else
-//            needs_bdry_stencil = needs_bdry_stencil or
-//              (on_z_face and (k <= domlo_z or k >= domhi_z));
-//
-//            Real zloc_on_xface = fcx(i,j,k,1);
-//            Real zloc_on_yface = fcy(i,j,k,1);
-//            Real xloc_on_zface = fcz(i,j,k,0);
-//            Real yloc_on_zface = fcz(i,j,k,1);
-//
-//            Real nz = norm(i,j,k,2);
-//
-//            if( flag(i,j,k).isRegular() or flag(i,j,k).isSingleValued()){
-//
-//               if(needs_bdry_stencil) {
-//                 grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
-//                     grad_x_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
-//                                                       flag, ccent, bcent, apx, apy,apz,
-//                                                       yloc_on_xface, zloc_on_xface, 
-//                                                       is_eb_dirichlet, is_eb_inhomog,
-//                                                       on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
-//                                                       on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
-//                                                       on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
-//
-//
-//                 grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
-//                     grad_y_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
-//                                                       flag, ccent, bcent, apx, apy, apz,
-//                                                       xloc_on_yface, zloc_on_yface,
-//                                                       is_eb_dirichlet, is_eb_inhomog,
-//                                                       on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
-//                                                       on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
-//                                                       on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
-//
-//                 grad_z_arr(i,j,k,n) = (apz(i,j,k) == 0.0) ? 0.0:
-//                     grad_z_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
-//                                                       flag, ccent, bcent, apx, apy, apz,
-//                                                       xloc_on_zface, yloc_on_zface,
-//                                                       is_eb_dirichlet, is_eb_inhomog,
-//                                                       on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
-//                                                       on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
-//                                                       on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
-//               } else {
-//
-//                 grad_x_arr(i,j,k,n) = (apx(i,j,k) == 0.0) ? 0.0 :
-//                   grad_x_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-//                                              flag, ccent, bcent, apx, apy, apz,
-//                                              yloc_on_xface, zloc_on_xface, is_eb_dirichlet, is_eb_inhomog);
-//
-//                 grad_y_arr(i,j,k,n) = (apy(i,j,k) == 0.0) ? 0.0:
-//                   grad_y_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-//                                              flag, ccent, bcent, apx, apy, apz,
-//                                              xloc_on_yface, zloc_on_yface, is_eb_dirichlet, is_eb_inhomog);
-//
-//                 grad_z_arr(i,j,k,n) = (apz(i,j,k) == 0.0) ? 0.0:
-//                   grad_z_of_phi_on_centroids(i, j, k, n, phi_arr, phi_eb_arr,
-//                                              flag, ccent, bcent, apx, apy, apz,
-//                                              xloc_on_zface, yloc_on_zface, is_eb_dirichlet, is_eb_inhomog);
-//
-//               }
-//            }
-//
-//
-//            if (flag(i,j,k).isSingleValued())
-//              grad_eb_arr(i,j,k,n) = grad_eb_of_phi_on_centroids_extdir(i, j, k, n, phi_arr, phi_eb_arr,
-//                        flag, ccent, bcent, nx, ny, nz, is_eb_inhomog,
-//                        on_x_face, domlo_x, domhi_x, phi_arr, phi_arr,
-//                        on_y_face, domlo_y, domhi_y, phi_arr, phi_arr,
-//                        on_z_face, domlo_z, domhi_z, phi_arr, phi_arr);
-//
 #endif
 
         });
     }
 }
+
 
 void
 MyTest::solve ()

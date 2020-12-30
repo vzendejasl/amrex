@@ -14,10 +14,10 @@ COMP = gnu
 
 #<<<<<<<	Updated upstream
 # Switch if testing 3D
-DIM = 2
+#DIM = 2
 #=======
 # Switch if testing 2D
-#DIM = 3
+DIM = 3
 #>>>>>>> Stashed changes
 
 AMREX_HOME = ../../..
