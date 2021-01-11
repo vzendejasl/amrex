@@ -282,6 +282,7 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
         int dir = poiseuille_1d_height_dir;
         int fdir = poiseuille_1d_flow_dir;
 
+
         fab(i, j, k, 0) = 0.0;
         fab(i, j, k, 1) = 0.0;
         fab(i, j, k, 2) = 0.0;
@@ -310,14 +311,17 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           }
 
           d = rx - bot;
-          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
-          fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0;
+          //fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
+          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? (H - d) : 0.0;
+    //      fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0; Don't need
 
-          Real rxl = i * dx[0];
-          d = rxl - bot;
-          fab_gx(i, j, k, fdir) =
-              (apx(i, j, k) == 0.0) ? 0.0 : (H - 2 * d) * dx[0];
+//          d = rx - bot;
 
+        
+
+//          fab_gx(i, j, k, fdir) = -1.0 * dx[0];
+
+          fab_gx(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? -1.0 * dx[0]: 0.0;
           if (flag(i, j, k).isSingleValued()) {
             fab_eb(i, j, k, 0) = 0.0;
             fab_eb(i, j, k, 1) = 0.0;
@@ -338,14 +342,18 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           }
 
           d = ry - bot;
-          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
-          fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0;
+         // fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
+          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? (H - d) : 0.0;
+//          fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0;
 
-          Real ryl = j * dx[1];
-          d = ryl - bot;
-          fab_gy(i, j, k, fdir) =
-              (apy(i, j, k) == 0.0) ? 0.0 : (H - 2 * d) * dx[1];
+//          Real ryl = j * dx[1];
+//          d = ryl - bot;
+//          fab_gy(i, j, k, fdir) = -1.0 * dx[1];
+           //   (apy(i, j, k) == 0.0) ? 0.0 : (H - 2 * d) * dx[1];
 
+          fab_gy(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? -1.0 * dx[1]: 0.0;
+//          Print()<< "fab_gy = " << fab_gy(i, j, k, fdir) << "\n"; 
+ 
           if (flag(i, j, k).isSingleValued()) {
             fab_eb(i, j, k, 0) = 0.0;
             fab_eb(i, j, k, 1) = 0.0;
@@ -366,13 +374,21 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           }
 
           d = rz - bot;
-          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
-          fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0;
+//          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
+          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? (H - d) : 0.0;
+//          fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0;
 
-          Real rzl = k * dx[2];
-          d = rzl - bot;
-          fab_gz(i, j, k, fdir) =
-              (apz(i, j, k) == 0.0) ? 0.0 : (H - 2 * d) * dx[2];
+//          Real rzl = k * dx[2];
+//          d = rzl - bot;
+//          Print() << "Test Print 4"<< "\n";
+//          Print() << "The value of dx[2]; "<< dx[2]<< "\n";
+
+//          fab_gz(i, j, k, fdir) =  -1.0 * dx[2];
+
+          fab_gz(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? -1.0 * dx[2]: 0.0;
+
+//          Print()<< "fab_gz = " << fab_gz(i, j, k, fdir) << "\n"; 
+//              (apz(i, j, k) == 0.0) ? 0.0 : (H - 2 * d) * dx[2];
 
           if (flag(i, j, k).isSingleValued()) {
             fab_eb(i, j, k, 0) = 0.0;

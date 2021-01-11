@@ -105,7 +105,7 @@ MyTest::compute_gradient ()
             }
 
             // First get EB-aware slope that doesn't know about extdir
-            bool needs_bdry_stencil = (on_x_face and on_y_face);
+//            bool needs_bdry_stencil = (on_x_face and on_y_face);
 
  
 //            Print()<<"Is periodic on x face? "<< on_x_face<< "\n";
@@ -136,8 +136,17 @@ MyTest::compute_gradient ()
            bool edlo_z = 0; 
            bool edhi_z = 0; 
 
-#if (AMREX_SPACEDIM == 2)
+//    bool needs_bdry_stencil = (edlo_x and i <= domlo_x) or (edhi_x and i >= domhi_x) or
+//                              (edlo_y and j <= domlo_y) or (edhi_y and j >= domhi_y);
+//#if (AMREX_SPACEDIM == 3)
+//         needs_bdry_stencil = needs_bdry_stencil or 
+//                              (edlo_z and k <= domlo_z) or (edhi_z and k >= domhi_z);
+//#endif
 
+
+#if (AMREX_SPACEDIM == 2)
+          
+           bool needs_bdry_stencil = (on_x_face and on_y_face);
            
               if(needs_bdry_stencil){
 //                 Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
@@ -173,7 +182,9 @@ MyTest::compute_gradient ()
 
 #if (AMREX_SPACEDIM == 3)
               
-              if(needs_bdry_stencil){
+          bool needs_bdry_stencil = (on_x_face and on_y_face and on_z_face);
+
+           if(needs_bdry_stencil){
    //              Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
                  edlo_x = 1;
                  edhi_x = 1; 
