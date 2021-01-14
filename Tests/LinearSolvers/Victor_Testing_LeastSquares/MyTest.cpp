@@ -182,35 +182,66 @@ MyTest::compute_gradient ()
 
 #if (AMREX_SPACEDIM == 3)
               
-          bool needs_bdry_stencil = (on_x_face and on_y_face and on_z_face);
+      
+//         bool needs_bdry_stencil = (on_x_face and on_y_face and on_z_face);
+//
+//           if(needs_bdry_stencil){
+//   //              Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
+//                 edlo_x = 1;
+//                 edhi_x = 1; 
+//                 edlo_y = 1; 
+//                 edhi_y = 1; 
+//                 edlo_z = 1; 
+//                 edhi_z = 1; 
+//              }
+//
+//           if(!flag(i,j,k).isCovered()){
+//
+//                   auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
+//                         phi_arr,ccent,
+//                         fcx,fcy,fcz,flag,
+//                         edlo_x,edlo_y,
+//                         edlo_x,edlo_y,
+//                         edhi_z,edhi_z,
+//                         domlo_x, domlo_y,domlo_z,
+//                         domhi_x,domhi_y,domhi_z);
+//
+//                   grad_x_arr(i,j,k,n) = slopes[0];
+//                   grad_y_arr(i,j,k,n) = slopes[1];
+//                   grad_z_arr(i,j,k,n) = slopes[2];
+//           }
+//
+//         bool needs_bdry_stencil_x = (on_x_face and on_y_face and on_z_face);
 
-           if(needs_bdry_stencil){
-   //              Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
+           if(on_x_face){
                  edlo_x = 1;
                  edhi_x = 1; 
-                 edlo_y = 1; 
+              }
+
+           if(on_y_face){
+                 edlo_y = 1;
                  edhi_y = 1; 
-                 edlo_z = 1; 
+              }
+           
+           if(on_z_face){
+                 edlo_z = 1;
                  edhi_z = 1; 
               }
 
            if(!flag(i,j,k).isCovered()){
 
-                   auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
-                         phi_arr,ccent,
-                         fcx,fcy,fcz,flag,
-                         edlo_x,edlo_y,
-                         edlo_x,edlo_y,
-                         edhi_z,edhi_z,
-                         domlo_x, domlo_y,domlo_z,
-                         domhi_x,domhi_y,domhi_z);
+                 auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
+                       phi_arr,ccent,
+                       fcx,fcy,fcz,flag,
+                       edlo_x,edlo_y,edlo_z,
+                       edhi_x,edhi_y,edhi_z,
+                       domlo_x,domlo_y,domlo_z,
+                       domhi_x,domhi_y,domhi_z);
 
-                   grad_x_arr(i,j,k,n) = slopes[0];
-                   grad_y_arr(i,j,k,n) = slopes[1];
-                   grad_z_arr(i,j,k,n) = slopes[2];
-
+                 grad_x_arr(i,j,k,n) = slopes[0];
+                 grad_y_arr(i,j,k,n) = slopes[1];
+                 grad_z_arr(i,j,k,n) = slopes[2];
            }
-
 #endif
 
         });

@@ -143,7 +143,7 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           fab_lap(i, j, k, 0) = 0.0;
           fab_lap(i, j, k, 1) = 0.0;
           fab_lap(i, j, k, 2) = 0.0;
-        } else {
+        } else { // not using laplacian - can delete
           fab_lap(i, j, k, 0) =
               2.0 * a * a * flow_norm[0] / (a * a + b * b + c * c) +
               2.0 * b * b * flow_norm[0] / (a * a + b * b + c * c) +
@@ -170,19 +170,16 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
 
           Real fac = -1.0;
           fab_gx(i, j, k, 0) =
-              (apx(i, j, k) == 0.0)
-                  ? 0.0
-                  : (a * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (a * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[0];
           fab_gx(i, j, k, 1) =
-              (apx(i, j, k) == 0.0)
-                  ? 0.0
-                  : (a * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (a * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[0];
           fab_gx(i, j, k, 2) =
-              (apx(i, j, k) == 0.0)
-                  ? 0.0
-                  : (a * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (a * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[0];
 
 //          rxl = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
@@ -197,19 +194,15 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
 
           fac = -1.0;
           fab_gy(i, j, k, 0) =
-              (apy(i, j, k) == 0.0)
-                  ? 0.0
-                  : (b * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (b * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[1];
           fab_gy(i, j, k, 1) =
-              (apy(i, j, k) == 0.0)
-                  ? 0.0
-                  : (b * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (b * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[1];
           fab_gy(i, j, k, 2) =
-              (apy(i, j, k) == 0.0)
-                  ? 0.0
-                  : (b * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
+                  (b * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[1];
 
 //          rxl = (i + 0.5 + fcz(i, j, k, 0)) * dx[0];
@@ -222,19 +215,16 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
 //                         (std::sqrt(a * a + b * b + c * c)));
           fac = -1.0;
           fab_gz(i, j, k, 0) =
-              (apz(i, j, k) == 0.0)
-                  ? 0.0
-                  : (c * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (c * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[2];
           fab_gz(i, j, k, 1) =
-              (apz(i, j, k) == 0.0)
-                  ? 0.0
-                  : (c * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (c * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[2];
           fab_gz(i, j, k, 2) =
-              (apz(i, j, k) == 0.0)
-                  ? 0.0
-                  : (c * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
+                  
+             (c * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[2];
         }
 
@@ -380,8 +370,6 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
 
 //          Real rzl = k * dx[2];
 //          d = rzl - bot;
-//          Print() << "Test Print 4"<< "\n";
-//          Print() << "The value of dx[2]; "<< dx[2]<< "\n";
 
 //          fab_gz(i, j, k, fdir) =  -1.0 * dx[2];
 
