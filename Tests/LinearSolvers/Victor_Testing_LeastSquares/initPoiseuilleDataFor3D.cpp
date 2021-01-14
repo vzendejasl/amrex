@@ -95,7 +95,14 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           rz = (dhi[2] + 1) * dx[2];
         }
 
-        auto dist = std::fabs(a * rx + b * ry + c * rz + d) /
+       if(j < dlo[1] and k < dlo[2] and !is_periodic[1] and !is_periodic[2]) {
+          rx = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
+          ry = dlo[1] * dx[1];
+          rz = dlo[2] * dx[2];
+       Print() <<"Test Print 1"<< "\n";                                       
+       }
+       
+      auto dist = std::fabs(a * rx + b * ry + c * rz + d) /
                     std::sqrt(a * a + b * b + c * c);
 
 //        auto phi_mag = (!flag(i, j, k).isCovered()) ? dist * (H - dist) : 0.0;
