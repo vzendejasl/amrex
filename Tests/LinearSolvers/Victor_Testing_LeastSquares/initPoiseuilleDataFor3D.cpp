@@ -101,7 +101,7 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           rz = dlo[2] * dx[2];
        Print() <<"Test Print 1"<< "\n";                                       
        }
-       
+
       auto dist = std::fabs(a * rx + b * ry + c * rz + d) /
                     std::sqrt(a * a + b * b + c * c);
 
