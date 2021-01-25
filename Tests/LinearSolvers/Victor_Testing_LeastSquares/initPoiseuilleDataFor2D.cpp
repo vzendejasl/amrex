@@ -1,4 +1,5 @@
 #include "MyTest.H"
+#include <AMReX_Config.H>
 #include <AMReX_EB2.H>
 #include <AMReX_EBMultiFabUtil.H>
 #include <AMReX_MultiFabUtil.H>
@@ -14,7 +15,6 @@ void MyTest::initializePoiseuilleDataFor2D(int ilev) {
     Array4<Real> const &fab_gx = grad_x_analytic[ilev].array(mfi);
     Array4<Real> const &fab_gy = grad_y_analytic[ilev].array(mfi);
     Array4<Real> const &fab_eb = grad_eb_analytic[ilev].array(mfi);
-    Array4<Real> const &fab_lap = lap_analytic[ilev].array(mfi);
 
     const FabArray<EBCellFlagFab> *flags =
         &(factory[ilev]->getMultiEBCellFlagFab());
@@ -79,13 +79,7 @@ void MyTest::initializePoiseuilleDataFor2D(int ilev) {
         fab_gx(i, j, k, 1) = 0.0;
         fab_gy(i, j, k, 0) = 0.0;
         fab_gy(i, j, k, 1) = 0.0;
-        fab_lap(i, j, k, 0) = 0.0;
-        fab_lap(i, j, k, 1) = 0.0;
       } else {
-        fab_lap(i, j, k, 0) = 2.0 * a * a * std::cos(t) / (a * a + b * b) +
-                              2.0 * b * b * std::cos(t) / (a * a + b * b);
-        fab_lap(i, j, k, 1) = 2.0 * a * a * std::sin(t) / (a * a + b * b) +
-                              2.0 * b * b * std::sin(t) / (a * a + b * b);
 
         Real rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
         Real ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];

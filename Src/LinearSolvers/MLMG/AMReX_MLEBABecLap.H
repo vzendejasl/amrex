@@ -1,5 +1,6 @@
 #ifndef AMREX_MLEBABECLAP_H_
 #define AMREX_MLEBABECLAP_H_
+#include <AMReX_Config.H>
 
 #include <AMReX_EBFabFactory.H>
 #include <AMReX_MLCellABecLap.H>
@@ -20,7 +21,8 @@ public:
                  const Vector<BoxArray>& a_grids,
                  const Vector<DistributionMapping>& a_dmap,
                  const LPInfo& a_info,
-                 const Vector<EBFArrayBoxFactory const*>& a_factory);
+                 const Vector<EBFArrayBoxFactory const*>& a_factory,
+                 const int a_ncomp = 1);
 
     virtual ~MLEBABecLap ();
 
@@ -59,6 +61,8 @@ public:
     void setEBHomogDirichlet (int amrlev,                      Real beta);
     void setEBHomogDirichlet (int amrlev,                      Vector<Real> const& beta);
 
+    virtual int getNComp () const override { return m_ncomp; }
+
     virtual bool needsUpdate () const override {
         return (m_needs_update || MLCellABecLap::needsUpdate());
     }
@@ -93,8 +97,6 @@ public:
         { return &(m_a_coeffs[amrlev][mglev]); }
     virtual Array<MultiFab const*,AMREX_SPACEDIM> getBCoeffs (int amrlev, int mglev) const final override
         { return amrex::GetArrOfConstPtrs(m_b_coeffs[amrlev][mglev]); }
-    virtual MultiFab const* getCoeff0 (int amrlev, int mglev) const
-        { return &(m_coeff0[amrlev][mglev]); }
 
     virtual std::unique_ptr<MLLinOp> makeNLinOp (int /*grid_size*/) const final override {
         amrex::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
@@ -111,7 +113,7 @@ public:
     virtual void getEBFluxes (const Vector<MultiFab*>& a_flux,
                               const Vector<MultiFab*>& a_sol) const override;
 
-#ifdef AMREX_USE_HYPRE
+#if defined(AMREX_USE_HYPRE) && (AMREX_SPACEDIM > 1)
     virtual std::unique_ptr<Hypre> makeHypre (Hypre::Interface hypre_interface) const override;
 #endif
 
@@ -120,6 +122,8 @@ public:
 #endif
 
 protected:
+
+    int m_ncomp;
 
     bool m_needs_update = true;
 
@@ -131,8 +135,6 @@ protected:
     Vector<Vector<MultiFab> > m_a_coeffs;
     Vector<Vector<Array<MultiFab,AMREX_SPACEDIM> > > m_b_coeffs;
     Vector<Vector<iMultiFab> > m_cc_mask;
-
-    Vector<Vector<MultiFab> > m_coeff0;
 
     Vector<std::unique_ptr<MultiFab> > m_eb_phi;
     Vector<Vector<std::unique_ptr<MultiFab> > > m_eb_b_coeffs;
@@ -151,8 +153,6 @@ protected:
                                         const Vector<MultiFab*>& b_eb);
     void averageDownCoeffs ();
     void averageDownCoeffsToCoarseAmrLevel (int flev);
-
-    void CalcCoeff0 (int amrlev, int mglev, MultiFab& coeff0);
 };
 
 }

@@ -1,4 +1,5 @@
 #include <AMReX.H>
+#include <AMReX_Config.H>
 #include "MyTest.H"
 
 int main (int argc, char* argv[])
@@ -10,11 +11,7 @@ int main (int argc, char* argv[])
         MyTest mytest;
 
         mytest.compute_gradient();
-
-        for (int i = 0; i < 1; ++i) {
-            mytest.solve();
-            mytest.writePlotfile();
-        }
+        mytest.writePlotfile();
     }
 
     amrex::Finalize();

@@ -1,8 +1,8 @@
 #ifndef MY_TEST_H_
 #define MY_TEST_H_
 
+#include <AMReX_Config.H>
 #include <AMReX_EBFabFactory.H>
-#include <AMReX_MLMG.H>
 #include <AMReX_Array.H>
 
 class MyTest
@@ -10,8 +10,8 @@ class MyTest
 public:
 
     MyTest ();
+    ~MyTest ();
 
-    void solve ();
     void compute_gradient ();
     void writePlotfile ();
     void initData ();
@@ -40,20 +40,8 @@ private:
 
     amrex::Vector<amrex::Real> scalars;
 
-    amrex::Vector<amrex::BCRec> m_bcrec;
+    int max_coarsening_level = 0;
 
-    // For MLMG solver
-    int verbose = 2;
-    int bottom_verbose = 2;
-    int max_iter = 100;
-    int max_fmg_iter = 0;
-    int max_bottom_iter = 1000;
-    amrex::Real reltol        = 1.e-12;
-    amrex::Real bottom_reltol = 1.e-4;
-    int linop_maxorder = 3;
-    int max_coarsening_level = 30;
-    bool use_hypre = false;
-    bool use_petsc = false;
     bool use_poiseuille_1d = false;
     bool poiseuille_1d_askew = false;
     amrex::Vector<amrex::Real> poiseuille_1d_pt_on_top_wall = amrex::Vector<amrex::Real>(3,0.0);
@@ -81,14 +69,6 @@ private:
     amrex::Vector<amrex::MultiFab> grad_eb;
     amrex::Vector<amrex::MultiFab> grad_eb_analytic;
     amrex::Vector<amrex::MultiFab> ccentr;
-    amrex::Vector<amrex::MultiFab> rhs;
-    amrex::Vector<amrex::MultiFab> acoef;
-    amrex::Vector<amrex::Array<amrex::MultiFab,AMREX_SPACEDIM> > bcoef;
-    amrex::Vector<amrex::MultiFab> bcoef_eb;
-    amrex::Vector<amrex::MultiFab> lap_analytic;
-    amrex::Vector<amrex::MultiFab> coeff0;
-
-    amrex::Vector<amrex::BCRec> const& get_bcrec () const noexcept { return m_bcrec; }
 
 };
 

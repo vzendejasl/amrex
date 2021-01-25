@@ -1,4 +1,5 @@
 
+#include <AMReX_Config.H>
 #include <AMReX_EB2.H>
 #include <AMReX_EB2_IF.H>
 

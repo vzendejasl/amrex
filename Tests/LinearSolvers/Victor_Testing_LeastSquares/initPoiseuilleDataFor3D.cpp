@@ -15,7 +15,6 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
     Array4<Real> const &fab_gy = grad_y_analytic[ilev].array(mfi);
     Array4<Real> const &fab_gz = grad_z_analytic[ilev].array(mfi);
     Array4<Real> const &fab_eb = grad_eb_analytic[ilev].array(mfi);
-    Array4<Real> const &fab_lap = lap_analytic[ilev].array(mfi);
 
     const FabArray<EBCellFlagFab> *flags =
         &(factory[ilev]->getMultiEBCellFlagFab());
@@ -51,19 +50,39 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
         Real alpha = (poiseuille_1d_askew_rotation[0] / 180.) * M_PI;
         Real gamma = (poiseuille_1d_askew_rotation[1] / 180.) * M_PI;
 
-        Real a = std::sin(gamma);
+        Real a =  std::sin(gamma);
         Real b = -std::cos(alpha) * std::cos(gamma);
-        Real c = std::sin(alpha);
+        Real c =  std::sin(alpha);
         Real d = -a * poiseuille_1d_pt_on_top_wall[0] -
-                 b * poiseuille_1d_pt_on_top_wall[1] -
-                 c * poiseuille_1d_pt_on_top_wall[2];
+                  b * poiseuille_1d_pt_on_top_wall[1] -
+                  c * poiseuille_1d_pt_on_top_wall[2];
 
         Real rx = (i + 0.5 + ccent(i, j, k, 0)) * dx[0];
         Real ry = (j + 0.5 + ccent(i, j, k, 1)) * dx[1];
         Real rz = (k + 0.5 + ccent(i, j, k, 2)) * dx[2];
 
-        // if not periodic, set the ghost cell values to corr. domain face
-        // values
+        // amrex::Print() << "DLO " << dlo[0] << " " << dlo[1] << " " << dlo[2] << std::endl; 
+        // amrex::Print() << "DHI " << dhi[0] << " " << dhi[1] << " " << dhi[2] << std::endl; 
+        // exit(0);
+
+        // if not periodic, set the ghost cell values to corr. domain face values
+
+        if (i < dlo[0] and not is_periodic[0]) 
+            rx = dlo[0] * dx[0];
+        if (i > dhi[0] and not is_periodic[0])
+            rx = (dhi[0] + 1) * dx[0];
+
+        if (j < dlo[1] and not is_periodic[1]) 
+            ry = dlo[1] * dx[1];
+        if (j > dhi[1] and not is_periodic[1])
+            ry = (dhi[1] + 1) * dx[1];
+
+        if (k < dlo[2] and not is_periodic[2]) 
+            rz = dlo[2] * dx[1];
+        if (k > dhi[2] and not is_periodic[2])
+            rz = (dhi[2] + 1) * dx[1];
+
+#if 0
         if (i < dlo[0] and not is_periodic[0]) {
           rx = dlo[0] * dx[0];
           ry = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
@@ -95,17 +114,34 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           rz = (dhi[2] + 1) * dx[2];
         }
 
-       if(j < dlo[1] and k < dlo[2] and !is_periodic[1] and !is_periodic[2]) {
-          rx = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
-          ry = dlo[1] * dx[1];
-          rz = dlo[2] * dx[2];
-       Print() <<"Test Print 1"<< "\n";                                       
-       }
+        if (i < dlo[0] and j > dlo[1] and !is_periodic[0] and !is_periodic[1]) {
+           rx = dlo[0] * dx[0];
+           ry = dlo[1] * dx[1];
+           rz = (k + 0.5 + fcy(i, j, k, 1)) * dx[2];
+        }
 
-      auto dist = std::fabs(a * rx + b * ry + c * rz + d) /
+        if (i < dlo[0] and j > dhi[1] and !is_periodic[0] and !is_periodic[1]) {
+           rx = dlo[0] * dx[0];
+           ry = (dhi[1] + 1) * dx[1];
+           rz = (k + 0.5 + fcy(i, j, k, 1)) * dx[2];
+        }
+
+        if (j < dlo[1] and k < dlo[2] and !is_periodic[1] and !is_periodic[2]) {
+           rx = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
+           ry = dlo[1] * dx[1];
+           rz = dlo[2] * dx[2];
+        }
+ 
+        if (j < dlo[1] and k > dhi[2] and !is_periodic[1] and !is_periodic[2]) {
+           rx = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
+           ry = dlo[1] * dx[1];
+            rz = dhi[2] * dx[2];
+       }
+#endif
+
+        auto dist = std::fabs(a * rx + b * ry + c * rz + d) /
                     std::sqrt(a * a + b * b + c * c);
 
-//        auto phi_mag = (!flag(i, j, k).isCovered()) ? dist * (H - dist) : 0.0;
         auto phi_mag = (!flag(i, j, k).isCovered()) ? (H - dist) : 0.0;
 
         Vector<Real> flow_norm(3, 0.0);
@@ -120,11 +156,11 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           Real flow_norm_mag = std::sqrt(std::sin(alpha) * std::sin(alpha) +
                                          std::sin(gamma) * std::sin(gamma));
           flow_norm[0] = -std::sin(alpha) / flow_norm_mag;
-          flow_norm[2] = std::sin(gamma) / flow_norm_mag;
+          flow_norm[2] =  std::sin(gamma) / flow_norm_mag;
 
         } else if (nfdir == 0) {
           Real flow_norm_mag = std::sqrt(std::cos(alpha) * std::cos(alpha) *
-                                             std::cos(gamma) * std::cos(gamma) +
+                                         std::cos(gamma) * std::cos(gamma) +
                                          std::sin(alpha) * std::sin(alpha));
           flow_norm[2] = std::cos(alpha) * std::cos(gamma) / flow_norm_mag;
           flow_norm[1] = std::sin(alpha) / flow_norm_mag;
@@ -147,90 +183,47 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           fab_gz(i, j, k, 1) = 0.0;
           fab_gz(i, j, k, 2) = 0.0;
 
-          fab_lap(i, j, k, 0) = 0.0;
-          fab_lap(i, j, k, 1) = 0.0;
-          fab_lap(i, j, k, 2) = 0.0;
         } else { // not using laplacian - can delete
-          fab_lap(i, j, k, 0) =
-              2.0 * a * a * flow_norm[0] / (a * a + b * b + c * c) +
-              2.0 * b * b * flow_norm[0] / (a * a + b * b + c * c) +
-              2.0 * c * c * flow_norm[0] / (a * a + b * b + c * c);
-          fab_lap(i, j, k, 1) =
-              2.0 * a * a * flow_norm[1] / (a * a + b * b + c * c) +
-              2.0 * b * b * flow_norm[1] / (a * a + b * b + c * c) +
-              2.0 * c * c * flow_norm[1] / (a * a + b * b + c * c);
-          fab_lap(i, j, k, 2) =
-              2.0 * a * a * flow_norm[2] / (a * a + b * b + c * c) +
-              2.0 * b * b * flow_norm[2] / (a * a + b * b + c * c) +
-              2.0 * c * c * flow_norm[2] / (a * a + b * b + c * c);
-
-//          Real rxl = i * dx[0];
-//          Real ryl = (j + 0.5 + fcx(i, j, k, 0)) * dx[1];
-//          Real rzl = (k + 0.5 + fcx(i, j, k, 1)) * dx[2];
-       
-          Real rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
-          Real ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
-          Real rzl = ((k + 0.5 + ccent(i, j, k, 2))) * dx[2];
-
-//          Real fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
- //                             (std::sqrt(a * a + b * b + c * c)));
 
           Real fac = -1.0;
+
           fab_gx(i, j, k, 0) =
-                  
              (a * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[0];
+
           fab_gx(i, j, k, 1) =
-                  
              (a * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[0];
+
           fab_gx(i, j, k, 2) =
-                  
              (a * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[0];
 
-//          rxl = (i + 0.5 + fcy(i, j, k, 0)) * dx[0];
-//          ryl = j * dx[1];
-//          rzl = (k + 0.5 + fcy(i, j, k, 1)) * dx[2];
-      
-          rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
-          ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
-          rzl = ((k + 0.5 + ccent(i, j, k, 2))) * dx[2];
-//          fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
-//                         (std::sqrt(a * a + b * b + c * c)));
-
           fac = -1.0;
+
           fab_gy(i, j, k, 0) =
-                  
              (b * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[1];
+
           fab_gy(i, j, k, 1) =
-                  
              (b * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[1];
+
           fab_gy(i, j, k, 2) =
                   (b * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[1];
 
-//          rxl = (i + 0.5 + fcz(i, j, k, 0)) * dx[0];
-//          ryl = (j + 0.5 + fcz(i, j, k, 1)) * dx[1];
-//          rzl = k * dx[2];
-          rxl = ((i + 0.5 + ccent(i, j, k, 0))) * dx[0];
-          ryl = ((j + 0.5 + ccent(i, j, k, 1))) * dx[1];
-          rzl = ((k + 0.5 + ccent(i, j, k, 2))) * dx[2];
-//          fac = (H - 2 * (a * rxl + b * ryl + c * rzl + d) /
-//                         (std::sqrt(a * a + b * b + c * c)));
           fac = -1.0;
+
           fab_gz(i, j, k, 0) =
-                  
              (c * flow_norm[0] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[2];
+
           fab_gz(i, j, k, 1) =
-                  
              (c * flow_norm[1] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[2];
+
           fab_gz(i, j, k, 2) =
-                  
              (c * flow_norm[2] / std::sqrt(a * a + b * b + c * c)) *
                         fac * dx[2];
         }
@@ -292,9 +285,6 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
         fab_gz(i, j, k, 0) = 0.0;
         fab_gz(i, j, k, 1) = 0.0;
         fab_gz(i, j, k, 2) = 0.0;
-        fab_lap(i, j, k, 0) = 0.0;
-        fab_lap(i, j, k, 1) = 0.0;
-        fab_lap(i, j, k, 2) = 0.0;
 
         Real d = 0.0;
         if (dir == 0) {
@@ -308,15 +298,7 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           }
 
           d = rx - bot;
-          //fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
           fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? (H - d) : 0.0;
-    //      fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0; Don't need
-
-//          d = rx - bot;
-
-        
-
-//          fab_gx(i, j, k, fdir) = -1.0 * dx[0];
 
           fab_gx(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? -1.0 * dx[0]: 0.0;
           if (flag(i, j, k).isSingleValued()) {
@@ -341,15 +323,9 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           d = ry - bot;
          // fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
           fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? (H - d) : 0.0;
-//          fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0;
 
-//          Real ryl = j * dx[1];
-//          d = ryl - bot;
-//          fab_gy(i, j, k, fdir) = -1.0 * dx[1];
-           //   (apy(i, j, k) == 0.0) ? 0.0 : (H - 2 * d) * dx[1];
 
           fab_gy(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? -1.0 * dx[1]: 0.0;
-//          Print()<< "fab_gy = " << fab_gy(i, j, k, fdir) << "\n"; 
  
           if (flag(i, j, k).isSingleValued()) {
             fab_eb(i, j, k, 0) = 0.0;
@@ -371,19 +347,9 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
           }
 
           d = rz - bot;
-//          fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? d * (H - d) : 0.0;
           fab(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? (H - d) : 0.0;
-//          fab_lap(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? 2.0 : 0.0;
-
-//          Real rzl = k * dx[2];
-//          d = rzl - bot;
-
-//          fab_gz(i, j, k, fdir) =  -1.0 * dx[2];
 
           fab_gz(i, j, k, fdir) = (!flag(i, j, k).isCovered()) ? -1.0 * dx[2]: 0.0;
-
-//          Print()<< "fab_gz = " << fab_gz(i, j, k, fdir) << "\n"; 
-//              (apz(i, j, k) == 0.0) ? 0.0 : (H - 2 * d) * dx[2];
 
           if (flag(i, j, k).isSingleValued()) {
             fab_eb(i, j, k, 0) = 0.0;
@@ -400,11 +366,5 @@ void MyTest::initializePoiseuilleDataFor3D(int ilev) {
       });
     }
   }
-}
-
-#else
-void MyTest::initializePoiseuilleDataFor3D(int ilev) {
-  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(0,
-                                   "Calling 3D function for 2D case. Error!!");
 }
 #endif

@@ -1,6 +1,6 @@
 #include "MyTest.H"
 
-#include <AMReX_MLEBABecLap.H>
+#include <AMReX_Config.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_EBMultiFabUtil.H>
@@ -25,6 +25,10 @@ MyTest::MyTest ()
     initializeEB();
 
     initData();
+}
+
+MyTest::~MyTest ()
+{
 }
 
 void
@@ -54,10 +58,13 @@ MyTest::compute_gradient ()
     const bool on_z_face = !(geom[0].isPeriodic(2));
 #endif
 
+    MultiFab dummy(grids[ilev],dmap[ilev],1,0);
 
-    for (MFIter mfi(rhs[ilev]); mfi.isValid(); ++mfi)
+    for (MFIter mfi(dummy); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.fabbox();
+        amrex::Print() << "WORKING ON BOX " << bx << std::endl;
+
         Array4<const Real> const& phi_arr     = phi[ilev].array(mfi);
         Array4<const Real> const& phi_eb_arr  = phieb[ilev].array(mfi);
         Array4<      Real> const& grad_x_arr  = grad_x[ilev].array(mfi);
@@ -73,13 +80,7 @@ MyTest::compute_gradient ()
 #endif
 
         Array4<Real const> const& ccent = (factory[ilev]->getCentroid()).array(mfi);
-        Array4<Real const> const& bcent = (factory[ilev]->getBndryCent()).array(mfi);
         Array4<Real const> const& norm  = (factory[ilev]->getBndryNormal()).array(mfi);
-        Array4<Real const> const& apx   = (factory[ilev]->getAreaFrac())[0]->const_array(mfi);
-        Array4<Real const> const& apy   = (factory[ilev]->getAreaFrac())[1]->const_array(mfi);
-#if (AMREX_SPACEDIM == 3)
-        Array4<Real const> const& apz   = (factory[ilev]->getAreaFrac())[2]->const_array(mfi);
-#endif
 
         const FabArray<EBCellFlagFab>* flags = &(factory[ilev]->getMultiEBCellFlagFab());
         Array4<EBCellFlag const> const& flag = flags->const_array(mfi);
@@ -90,45 +91,19 @@ MyTest::compute_gradient ()
         [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
         {
             ccentr_arr(i,j,k,n) = ccent(i,j,k,n);
-            Real yloc_on_xface = fcx(i,j,k,0);
-            Real xloc_on_yface = fcy(i,j,k,0);
-            Real nx = norm(i,j,k,0);
-            Real ny = norm(i,j,k,1);
 
             // There is no need to set these to zero other than it makes using
             // amrvis a lot more friendly.
-            if( flag(i,j,k).isCovered()){
+            if ( flag(i,j,k).isCovered() )
+            {
               grad_x_arr(i,j,k,n)  = 0.0;
               grad_y_arr(i,j,k,n)  = 0.0;
               grad_z_arr(i,j,k,n)  = 0.0;
 
-            }
+            } else {
 
             // First get EB-aware slope that doesn't know about extdir
-//            bool needs_bdry_stencil = (on_x_face and on_y_face);
-
  
-//            Print()<<"Is periodic on x face? "<< on_x_face<< "\n";
-//            Print()<<"Is periodic on y face? "<< on_y_face<< "\n";
-//            Print()<<"Testing the needs boundary condition: "<<needs_bdry_stencil<<"\n";
-           
-//           Print()<< "if(!flag(i,j,k).isCovered()) : "<< !flag(i,j,k).isCovered()<< "\n";
-//           bool edlo = (i <= domlo_x or j <= domlo_y);
-//           bool edhi = (i >= domhi_x or j <= domhi_y);
-           
-//           bool edlo_x = (on_x_face and (i == domlo_x));
-//           bool edhi_x = (on_x_face and (i == domhi_x)); 
-//           bool edlo_y = (on_y_face and (i == domlo_y)); 
-//           bool edhi_y = (on_y_face and (i == domhi_y)); 
-//
-//           bool edlo_x = 1;
-//           bool edhi_x = 1; 
-//           bool edlo_y = 1; 
-//           bool edhi_y = 1; 
-//           bool edlo_z = 1; 
-//           bool edhi_z = 1; 
-           
-
            bool edlo_x = 0;
            bool edhi_x = 0; 
            bool edlo_y = 0; 
@@ -136,219 +111,77 @@ MyTest::compute_gradient ()
            bool edlo_z = 0; 
            bool edhi_z = 0; 
 
-//    bool needs_bdry_stencil = (edlo_x and i <= domlo_x) or (edhi_x and i >= domhi_x) or
-//                              (edlo_y and j <= domlo_y) or (edhi_y and j >= domhi_y);
-//#if (AMREX_SPACEDIM == 3)
-//         needs_bdry_stencil = needs_bdry_stencil or 
-//                              (edlo_z and k <= domlo_z) or (edhi_z and k >= domhi_z);
-//#endif
-
-
 #if (AMREX_SPACEDIM == 2)
           
            bool needs_bdry_stencil = (on_x_face and on_y_face);
            
-              if(needs_bdry_stencil){
-//                 Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
-                 edlo_x = 1;
-                 edhi_x = 1; 
-                 edlo_y = 1; 
-                 edhi_y = 1; 
-              }
-          
-//              Print()<< "Bool edlo_x "<< edlo_x <<"\n";
-//              Print()<< "Bool edhi_x "<< edhi_x <<"\n"; 
-//              Print()<< "Bool edlo_y "<< edlo_y <<"\n"; 
-//              Print()<< "Bool edlo_y "<< edhi_y <<"\n"; 
-              if(!flag(i,j,k).isCovered()){
-
-                // Print()<< "The !flag(i,j,k).isCovered() is exicuting"<< "\n";
-                // Print()<< (!flag(i,j,k).isCovered())<< "\n";
+           if (needs_bdry_stencil)
+           { 
+              edlo_x = 1;
+              edhi_x = 1; 
+              edlo_y = 1; 
+              edhi_y = 1; 
+           }
                
-                 auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
-                       phi_arr,ccent,
-                       fcx,fcy,flag,
-                       edlo_x,edlo_y,
-                       edhi_x,edhi_y,
-                       domlo_x, domlo_y,
-                       domhi_x,domhi_y);
+           auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
+                   phi_arr,ccent,
+                   fcx,fcy,flag,
+                   edlo_x,edlo_y,
+                   edhi_x,edhi_y,
+                   domlo_x, domlo_y,
+                   domhi_x,domhi_y);
 
-                 grad_x_arr(i,j,k,n) = slopes[0];
-                 grad_y_arr(i,j,k,n) = slopes[1];
-              }
+           grad_x_arr(i,j,k,n) = slopes[0];
+           grad_y_arr(i,j,k,n) = slopes[1];
 
+#elif (AMREX_SPACEDIM == 3)
 
-#endif
+           if (on_x_face){
+               edlo_x = 1;
+               edhi_x = 1; 
+           }
 
-#if (AMREX_SPACEDIM == 3)
-              
-      
-//         bool needs_bdry_stencil = (on_x_face and on_y_face and on_z_face);
-//
-//           if(needs_bdry_stencil){
-//   //              Print()<< "Printing needs_bdr_stencil value: "<< needs_bdry_stencil<<"\n";
-//                 edlo_x = 1;
-//                 edhi_x = 1; 
-//                 edlo_y = 1; 
-//                 edhi_y = 1; 
-//                 edlo_z = 1; 
-//                 edhi_z = 1; 
-//              }
-//
-//           if(!flag(i,j,k).isCovered()){
-//
-//                   auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
-//                         phi_arr,ccent,
-//                         fcx,fcy,fcz,flag,
-//                         edlo_x,edlo_y,
-//                         edlo_x,edlo_y,
-//                         edhi_z,edhi_z,
-//                         domlo_x, domlo_y,domlo_z,
-//                         domhi_x,domhi_y,domhi_z);
-//
-//                   grad_x_arr(i,j,k,n) = slopes[0];
-//                   grad_y_arr(i,j,k,n) = slopes[1];
-//                   grad_z_arr(i,j,k,n) = slopes[2];
-//           }
-//
-//         bool needs_bdry_stencil_x = (on_x_face and on_y_face and on_z_face);
-
-           if(on_x_face){
-                 edlo_x = 1;
-                 edhi_x = 1; 
-              }
-
-           if(on_y_face){
-                 edlo_y = 1;
-                 edhi_y = 1; 
-              }
+           if (on_y_face){
+               edlo_y = 1;
+               edhi_y = 1; 
+           }
            
-           if(on_z_face){
-                 edlo_z = 1;
-                 edhi_z = 1; 
-              }
+           if (on_z_face){
+               edlo_z = 1;
+               edhi_z = 1; 
+           }
 
-           if(!flag(i,j,k).isCovered()){
+           if (n == 1)
+           {
+           auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
+                 phi_arr,ccent,
+                 fcx,fcy,fcz,flag,
+                 edlo_x,edlo_y,edlo_z,
+                 edhi_x,edhi_y,edhi_z,
+                 domlo_x,domlo_y,domlo_z,
+                 domhi_x,domhi_y,domhi_z);
 
-                 auto slopes = amrex_calc_slopes_extdir_eb(i,j,k,n,
-                       phi_arr,ccent,
-                       fcx,fcy,fcz,flag,
-                       edlo_x,edlo_y,edlo_z,
-                       edhi_x,edhi_y,edhi_z,
-                       domlo_x,domlo_y,domlo_z,
-                       domhi_x,domhi_y,domhi_z);
+           grad_x_arr(i,j,k,n) = slopes[0];
+           grad_y_arr(i,j,k,n) = slopes[1];
+           grad_z_arr(i,j,k,n) = slopes[2];
 
-                 grad_x_arr(i,j,k,n) = slopes[0];
-                 grad_y_arr(i,j,k,n) = slopes[1];
-                 grad_z_arr(i,j,k,n) = slopes[2];
+           } else {
+
+           grad_x_arr(i,j,k,n) = 0.0;
+           grad_y_arr(i,j,k,n) = 0.0;
+           grad_z_arr(i,j,k,n) = 0.0;
+           }
+
+           // if (n == 1 and (i >= 4 and i <= 10) and (j == 0) and k == 79)
+           {
+               // amrex::Print() << "GRAD_X " << IntVect(i,j,k) << " " << 
+               // slopes[0] << " " << slopes[1] << " " << slopes[2] << std::endl;
+               // amrex::Print() << " " << std::endl;
            }
 #endif
-
+           } // end of not covered
         });
-    }
-}
-
-
-void
-MyTest::solve ()
-{
-    int ncomp = phi[0].nComp();
-
-    for(int n = 0; n < ncomp; ++n) {
-       Vector<MultiFab> phi_comp(max_level + 1);
-       Vector<MultiFab> rhs_comp(max_level + 1);
-       Vector<MultiFab> acoef_comp(max_level + 1);
-       Vector<Array<MultiFab,AMREX_SPACEDIM> > bcoef_comp(max_level + 1);
-       Vector<MultiFab> coeff0_comp(max_level + 1);
-       Vector<MultiFab> bcoef_eb_comp(max_level + 1);
-
-       Vector<MultiFab> phi_eb(max_level + 1);
-
-       for (int ilev = 0; ilev <= max_level; ++ilev) {
-           phi_comp[ilev]   = MultiFab(phi[ilev]  , make_alias, n, 1);
-           rhs_comp[ilev]   = MultiFab(rhs[ilev]  , make_alias, n, 1);
-           acoef_comp[ilev] = MultiFab(acoef[ilev], make_alias, n, 1);
-           coeff0_comp[ilev] = MultiFab(coeff0[ilev], make_alias, n, 1);
-
-           for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-              bcoef_comp[ilev][idim] = MultiFab(bcoef[ilev][idim], make_alias, n, 1);
-           }
-
-           if (eb_is_dirichlet or eb_is_homog_dirichlet) {
-              bcoef_eb_comp[ilev] = MultiFab(bcoef_eb[ilev], make_alias, n, 1);
-           }
-
-           if (eb_is_dirichlet) {
-             phi_eb[ilev] = MultiFab(phi[ilev]  , make_alias, n, 1);
-           }
-
-
-           const MultiFab& vfrc = factory[ilev]->getVolFrac();
-           MultiFab v(vfrc.boxArray(), vfrc.DistributionMap(), 1, 0,
-                      MFInfo(), *factory[ilev]);
-           MultiFab::Copy(v, vfrc, 0, 0, 1, 0);
-           amrex::EB_set_covered(v, 1.0);
-           // amrex::Print() << "vfrc min = " << v.min(0) << std::endl;
-       }
-
-       std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_lobc;
-       std::array<LinOpBCType,AMREX_SPACEDIM> mlmg_hibc;
-       for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-       {
-           if (geom[0].isPeriodic(idim)) {
-               mlmg_lobc[idim] = LinOpBCType::Periodic;
-               mlmg_hibc[idim] = LinOpBCType::Periodic;
-           } else {
-               mlmg_lobc[idim] = LinOpBCType::Dirichlet;
-               mlmg_hibc[idim] = LinOpBCType::Dirichlet;
-           }
-       }
-
-       LPInfo info;
-       info.setMaxCoarseningLevel(max_coarsening_level);
-
-       MLEBABecLap mleb (geom, grids, dmap, info, amrex::GetVecOfConstPtrs(factory));
-       mleb.setMaxOrder(linop_maxorder);
-       mleb.setPhiOnCentroid();
-
-       mleb.setDomainBC(mlmg_lobc, mlmg_hibc);
-
-       for (int ilev = 0; ilev <= max_level; ++ilev) {
-           mleb.setLevelBC(ilev, &phi_comp[ilev]);
-       }
-
-       mleb.setScalars(scalars[0], scalars[1]);
-
-       for (int ilev = 0; ilev <= max_level; ++ilev) {
-           mleb.setACoeffs(ilev, acoef_comp[ilev]);
-           mleb.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(bcoef_comp[ilev]));
-       }
-
-
-       if (eb_is_homog_dirichlet) {
-         amrex::Print() << "setting EB Homogeneous Dirichlet\n";
-         for (int ilev = 0; ilev <= max_level; ++ilev) {
-           mleb.setEBHomogDirichlet(ilev, bcoef_eb_comp[ilev]);
-         }
-
-       } else if (eb_is_dirichlet) {
-         amrex::Print() << "setting EB Dirichlet\n";
-         for (int ilev = 0; ilev <= max_level; ++ilev) {
-           // This case was setup for Poiseuille flow so the walls
-           // are set to no-slip (zero velocity).
-           phi_eb[ilev].setVal(0.0);
-           mleb.setEBDirichlet(ilev, phi_eb[ilev], bcoef_eb_comp[ilev]);
-         }
-       }
-
-       MLMG mlmg(mleb);
-
-       mlmg.apply(amrex::GetVecOfPtrs(rhs_comp), amrex::GetVecOfPtrs(phi_comp));
-
-       for(int ilev = 0; ilev <= max_level; ++ilev) {
-         MultiFab::Copy(coeff0_comp[ilev],*mleb.getCoeff0(ilev,0),0,0,1,0);
-       }
-    }
+    } // MFIter 
 }
 
 void
@@ -359,63 +192,60 @@ MyTest::writePlotfile ()
         const MultiFab& vfrc = factory[ilev]->getVolFrac();
 
 #if (AMREX_SPACEDIM == 2)
-        plotmf[ilev].define(grids[ilev],dmap[ilev],17,0);
-        MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 2, 0);
-        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 2, 2, 0);
-        MultiFab::Copy(plotmf[ilev], vfrc, 0, 4, 1, 0);
-        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 5, 2, 0);
-        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 7, 2, 0);
-        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 9, 2, 0);
-        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 11, 2, 0);
-        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 13, 2, 0);
-        MultiFab::Copy(plotmf[ilev], coeff0[ilev], 0, 15, 2, 0);
+
+        plotmf[ilev].define(grids[ilev],dmap[ilev],13,0);
+        MultiFab::Copy(plotmf[ilev], phi[ilev]    , 0, 0, 2, 0);
+        MultiFab::Copy(plotmf[ilev], vfrc         , 0, 2, 1, 0);
+        MultiFab::Copy(plotmf[ilev], phieb[ilev]  , 0, 3, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_x[ilev] , 0, 5, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_y[ilev] , 0, 7, 2, 0);
+        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 9, 2, 0);
+        MultiFab::Copy(plotmf[ilev], ccentr[ilev] , 0, 11, 2, 0);
     }
+
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
                             {"u", "v",
-                             "lapu", "lapv",
                              "vfrac",
                              "ueb", "veb",
                              "dudx", "dvdx",
                              "dudy", "dvdy",
                              "dudn", "dvdn",
-                             "ccent_x", "ccent_y",
-                             "coeff0_u", "coeff0_v"},
+                             "ccent_x", "ccent_y"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
 
     Vector<MultiFab> plotmf_analytic(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
-        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],8,0);
+        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],6,0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_x_analytic[ilev], 0, 0, 2, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_y_analytic[ilev], 0, 2, 2, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_eb_analytic[ilev], 0, 4, 2, 0);
-        MultiFab::Copy(plotmf_analytic[ilev], lap_analytic[ilev], 0, 6, 2, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf_analytic),
                             {"dudx", "dvdx",
                              "dudy","dvdy",
-                             "dudn","dvdn",
-                             "lapu","lapv"},
+                             "dudn","dvdn"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
 #else
-        plotmf[ilev].define(grids[ilev],dmap[ilev],25,0);
-        MultiFab::Copy(plotmf[ilev], phi[ilev], 0, 0, 3, 0);
-        MultiFab::Copy(plotmf[ilev], rhs[ilev], 0, 3, 3, 0);
-        MultiFab::Copy(plotmf[ilev], vfrc, 0, 6, 1, 0);
-        MultiFab::Copy(plotmf[ilev], phieb[ilev], 0, 7, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 10, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 13, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_z[ilev], 0, 16, 3, 0);
-        MultiFab::Copy(plotmf[ilev], grad_eb[ilev], 0, 19, 3, 0);
-        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 22, 3, 0);
+        plotmf[ilev].define(grids[ilev],dmap[ilev],22,0);
+        plotmf[ilev].setVal(0.);
+
+        MultiFab::Copy(plotmf[ilev], phi[ilev]   , 0, 0, 3, 0);
+        MultiFab::Copy(plotmf[ilev], vfrc        , 0, 3, 1, 0);
+        MultiFab::Copy(plotmf[ilev], phieb[ilev] , 0, 4, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_x[ilev], 0, 7, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_y[ilev], 0, 10, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_z[ilev], 0, 13, 3, 0);
+        MultiFab::Copy(plotmf[ilev], grad_eb[ilev],0, 16, 3, 0);
+        MultiFab::Copy(plotmf[ilev], ccentr[ilev], 0, 19, 3, 0);
     }
+
     WriteMultiLevelPlotfile(plot_file_name, max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf),
                             {"u", "v", "w",
-                             "lapu","lapv","lapw",
                              "vfrac",
                              "ueb", "veb", "web",
                              "dudx", "dvdx", "dwdx",
@@ -428,20 +258,18 @@ MyTest::writePlotfile ()
 
     Vector<MultiFab> plotmf_analytic(max_level+1);
     for (int ilev = 0; ilev <= max_level; ++ilev) {
-        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],15,0);
+        plotmf_analytic[ilev].define(grids[ilev],dmap[ilev],12,0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_x_analytic[ilev], 0, 0, 3, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_y_analytic[ilev], 0, 3, 3, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_z_analytic[ilev], 0, 6, 3, 0);
         MultiFab::Copy(plotmf_analytic[ilev], grad_eb_analytic[ilev], 0, 9, 3, 0);
-        MultiFab::Copy(plotmf_analytic[ilev], lap_analytic[ilev], 0, 12, 3, 0);
     }
     WriteMultiLevelPlotfile(plot_file_name + "-analytic", max_level+1,
                             amrex::GetVecOfConstPtrs(plotmf_analytic),
                             {"dudx", "dvdx","dwdx",
                              "dudy","dvdy","dwdy",
                              "dudz","dvdz","dwdz",
-                             "dudn","dvdn","dwdn",
-                             "lapu","lapv","lapw"},
+                             "dudn","dvdn","dwdn"},
                             geom, 0.0, Vector<int>(max_level+1,0),
                             Vector<IntVect>(max_level,IntVect{2}));
 
@@ -485,21 +313,6 @@ MyTest::readParameters ()
     }
     pp.queryarr("scalars", scalars);
 
-    pp.query("verbose", verbose);
-    pp.query("bottom_verbose", bottom_verbose);
-    pp.query("max_iter", max_iter);
-    pp.query("max_fmg_iter", max_fmg_iter);
-    pp.query("max_bottom_iter", max_bottom_iter);
-    pp.query("bottom_reltol", bottom_reltol);
-    pp.query("reltol", reltol);
-    pp.query("linop_maxorder", linop_maxorder);
-    pp.query("max_coarsening_level", max_coarsening_level);
-#ifdef AMREX_USE_HYPRE
-    pp.query("use_hypre", use_hypre);
-#endif
-#ifdef AMREX_USE_PETSC
-    pp.query("use_petsc",use_petsc);
-#endif
     pp.query("use_poiseuille_1d", use_poiseuille_1d);
     pp.query("poiseuille_1d_askew", poiseuille_1d_askew);
     pp.queryarr("poiseuille_1d_pt_on_top_wall",poiseuille_1d_pt_on_top_wall);

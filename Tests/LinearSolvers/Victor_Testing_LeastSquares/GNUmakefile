@@ -1,4 +1,7 @@
+
+DEBUG = TRUE
 DEBUG = FALSE
+
 TEST = TRUE
 USE_ASSERTION = TRUE
 
@@ -7,27 +10,17 @@ USE_EB = TRUE
 USE_MPI  = TRUE
 USE_OMP  = FALSE
 
-USE_HYPRE = FALSE
-USE_PETSC = FALSE
-
 COMP = gnu
 
-#<<<<<<<	Updated upstream
-# Switch if testing 3D
-#DIM = 2
-#=======
-# Switch if testing 2D
 DIM = 3
-#>>>>>>> Stashed changes
 
-AMREX_HOME = ../../..
+AMREX_HOME ?= ../../..
 
 include $(AMREX_HOME)/Tools/GNUMake/Make.defs
 include ./Make.package
 
 Pdirs := Base Boundary AmrCore
 Pdirs += EB
-Pdirs += LinearSolvers/MLMG
 
 Ppack	+= $(foreach dir, $(Pdirs), $(AMREX_HOME)/Src/$(dir)/Make.package)
 
