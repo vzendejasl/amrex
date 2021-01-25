@@ -511,7 +511,6 @@ amrex_calc_slopes_extdir_eb (int i, int j, int k, int n,
     }
 #endif
 
-    if (std::abs(xslope+0.02848194) > 1.e-8) amrex::Print() << "SLOPE " << amrex::IntVect(i,j,k) << " " << xslope << std::endl; 
     return {AMREX_D_DECL(xslope,yslope,zslope)};
 }
 
